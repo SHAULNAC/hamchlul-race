@@ -152,9 +152,9 @@
         <div id="status-message" style="margin-bottom:20px; color:var(--gold); font-weight:600; min-height:1.2em;"></div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:40px;">
-            <button class="btn" onclick="startExtreme(60)">קל</button>
-            <button class="btn" style="background:#1e293b" onclick="startExtreme(35)">בינוני</button>
-            <button class="btn" style="background:var(--danger)" onclick="startExtreme(10)">קשה</button>
+            <button class="btn" onclick="startExtreme(60)">יעד מצוי</button>
+            <button class="btn" style="background:#1e293b" onclick="startExtreme(35)">יעד סביר</button>
+            <button class="btn" style="background:var(--danger)" onclick="startExtreme(10)">יעד נדיר</button>
         </div>
 
         <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 25px;">
@@ -241,11 +241,11 @@
         tracker.classList.remove('dist-1', 'dist-2', 'dist-active');
         if (dist1Nodes.has(title)) {
             tracker.classList.add('dist-1', 'dist-active');
-            tag.innerText = "מרחק 1: יש קישור ישיר ליעד!";
+            tag.innerText = "רותח!";
             tag.style.background = 'var(--danger)';
         } else if (links.some(l => dist1Nodes.has(l))) {
             tracker.classList.add('dist-2', 'dist-active');
-            tag.innerText = "מרחק 2: היעד קרוב מאוד";
+            tag.innerText = "מתחמם...";
             tag.style.background = 'var(--gold)';
         }
     }
@@ -379,4 +379,5 @@
 </script>
 </body>
 </html>
+
 
