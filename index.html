@@ -13,6 +13,7 @@
             --danger: #ef4444;
             --gold: #f59e0b;
             --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            --kofi: #29abe0;
         }
 
         body { 
@@ -81,10 +82,11 @@
 
         .win-card {
             background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
-            padding: 60px; border-radius: 40px; border: 1px solid rgba(255,255,255,0.15);
+            padding: 50px; border-radius: 40px; border: 1px solid rgba(255,255,255,0.15);
             text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
             transform: translateY(30px); opacity: 0;
             animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            max-width: 500px;
         }
 
         @keyframes slideUp { to { transform: translateY(0); opacity: 1; } }
@@ -93,8 +95,16 @@
         .btn { 
             background: var(--accent); color: white; border: none; padding: 14px 28px; 
             cursor: pointer; border-radius: 12px; font-weight: bold; transition: 0.3s;
+            text-decoration: none; display: inline-block;
         }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4); }
+
+        .btn-kofi {
+            background: var(--kofi);
+            font-size: 0.9em;
+            padding: 8px 16px;
+            margin-top: 10px;
+        }
 
         .overlay-card {
             text-align:center; width:450px; padding:40px; background:rgba(255,255,255,0.05); 
@@ -161,21 +171,29 @@
             <button id="check-btn" class="btn" style="width:100%; margin-top:10px;" onclick="validateCustom()">בדוק רמת קושי</button>
         </div>
 
-        <div id="user-stats-main" style="margin-top:25px; font-size:0.85em; color:#94a3b8; padding:10px; border-radius:10px; background:rgba(255,255,255,0.02);"></div>
+        <div id="user-stats-main" style="margin-top:25px; font-size:0.85em; color:#94a3b8; padding:15px; border-radius:10px; background:rgba(255,255,255,0.02); display: flex; flex-direction: column; align-items: center;">
+            <span id="stats-text">טוען סטטיסטיקה...</span>
+            <a href="https://ko-fi.com/shaulnac" target="_blank" class="btn btn-kofi">☕ תמכו במפתח המשחק</a>
+        </div>
     </div>
 </div>
 
 <div id="win-screen">
     <div class="win-card">
-        <div style="font-size: 5em; margin-bottom:10px; animation: bounce 2s infinite;">🏆</div>
+        <div style="font-size: 5em; margin-bottom:10px;">🏆</div>
         <h1 style="font-size:4em; margin:0; background: linear-gradient(to bottom, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ניצחון הירואי!</h1>
         <p id="win-summary" style="font-size:1.6em; margin:20px 0; opacity:0.9;"></p>
         
-        <div style="display:flex; gap:15px; justify-content:center; margin-bottom:40px;">
+        <div style="display:flex; gap:15px; justify-content:center; margin-bottom:30px;">
             <div class="stat-box" style="padding:15px 25px;"><span class="sub-stat">ניצחונות</span><span id="stat-wins" class="stat-val" style="font-size:1.8em;">0</span></div>
             <div class="stat-box" style="padding:15px 25px;"><span class="sub-stat">ממוצע צעדים</span><span id="stat-avg" class="stat-val" style="font-size:1.8em;">0</span></div>
         </div>
         
+        <div style="margin-bottom: 25px;">
+            <p style="margin-bottom: 10px; font-size: 0.9em; color: #94a3b8;">נהנית מהמשחק?</p>
+            <a href="https://ko-fi.com/shaulnac" target="_blank" class="btn" style="background: #29abe0; padding: 10px 20px;">☕ הזמן אותי לקפה ב-Ko-fi</a>
+        </div>
+
         <button class="btn" style="padding:18px 60px; font-size:1.3em; background:var(--success);" onclick="location.reload()">לאתגר הבא</button>
     </div>
 </div>
@@ -184,30 +202,23 @@
     let clicks = 0, seconds = 0, timerInterval, targetTitle = "", historyStack = [], dist1Nodes = new Set();
     let hintsLeft = 3;
 
-    // סטטיסטיקות מפורטות
-    let stats = JSON.parse(localStorage.getItem('hamichlol_pro_stats')) || {
-        totalWins: 0,
-        totalClicks: 0,
-        totalTime: 0
-    };
+    // סטטיסטיקות
+    let stats = JSON.parse(localStorage.getItem('hamichlol_pro_stats')) || { totalWins: 0, totalClicks: 0, totalTime: 0 };
 
     function updateStatsDisplay() {
         const avg = stats.totalWins ? (stats.totalClicks / stats.totalWins).toFixed(1) : 0;
-        document.getElementById('user-stats-main').innerText = `סטטיסטיקה: ${stats.totalWins} ניצחונות | ממוצע ${avg} צעדים`;
+        document.getElementById('stats-text').innerText = `סטטיסטיקה: ${stats.totalWins} ניצחונות | ממוצע ${avg} צעדים`;
     }
 
-    // בדיקת קושי למותאם אישית
     async function validateCustom() {
         const start = document.getElementById('custom-start').value.trim();
         const target = document.getElementById('custom-target').value.trim();
         if(!start || !target) return;
-
         document.getElementById('check-btn').innerText = "...סורק";
         try {
             const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(target)}&blnamespace=0&bllimit=250&format=json&origin=*`);
             const data = await res.json();
             const count = data.query.backlinks ? data.query.backlinks.length : 0;
-            
             document.getElementById('validation-info').innerHTML = `יעד: <b>${target}</b><br>קישורים נכנסים: <b>${count}</b>`;
             document.getElementById('custom-validation').classList.remove('hidden');
             document.getElementById('check-btn').classList.add('hidden');
@@ -215,16 +226,9 @@
         document.getElementById('check-btn').innerText = "בדוק רמת קושי";
     }
 
-    function confirmCustomGame() {
-        setupGame(document.getElementById('custom-start').value, document.getElementById('custom-target').value);
-    }
+    function confirmCustomGame() { setupGame(document.getElementById('custom-start').value, document.getElementById('custom-target').value); }
+    function resetCustom() { document.getElementById('custom-validation').classList.add('hidden'); document.getElementById('check-btn').classList.remove('hidden'); }
 
-    function resetCustom() {
-        document.getElementById('custom-validation').classList.add('hidden');
-        document.getElementById('check-btn').classList.remove('hidden');
-    }
-
-    // ניהול סמן הקירבה
     async function prepareCompass(target) {
         const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(target)}&blnamespace=0&bllimit=200&format=json&origin=*`);
         const data = await res.json();
@@ -235,7 +239,6 @@
         const tracker = document.getElementById('vertical-tracker');
         const tag = document.getElementById('distance-tag');
         tracker.classList.remove('dist-1', 'dist-2', 'dist-active');
-        
         if (dist1Nodes.has(title)) {
             tracker.classList.add('dist-1', 'dist-active');
             tag.innerText = "מרחק 1: יש קישור ישיר ליעד!";
@@ -247,7 +250,6 @@
         }
     }
 
-    // פונקציות ליבה
     async function startExtreme(minLinks) {
         const status = document.getElementById('status-message');
         status.innerText = "מחפש יעד מאתגר...";
@@ -284,11 +286,9 @@
                 const current = data.parse.displaytitle.replace(/<[^>]*>?/gm, '');
                 area.innerHTML = `<h1>${current}</h1>` + data.parse.text["*"];
                 const links = data.parse.links.map(l => l["*"]);
-                
                 updateCompass(current, links);
                 if (!isBack) historyStack.push(current);
                 saveGameState(current);
-                
                 if (current.toLowerCase() === targetTitle.toLowerCase()) win();
                 window.scrollTo(0,0);
             }
@@ -310,21 +310,16 @@
     });
 
     function saveGameState(current) {
-        localStorage.setItem('hamichlol_race_active', JSON.stringify({
-            clicks, seconds, targetTitle, historyStack, hintsLeft, current
-        }));
+        localStorage.setItem('hamichlol_race_active', JSON.stringify({ clicks, seconds, targetTitle, historyStack, hintsLeft, current }));
     }
 
     function win() {
         clearInterval(timerInterval);
         localStorage.removeItem('hamichlol_race_active');
-        
-        // עדכון סטטיסטיקות
         stats.totalWins++;
         stats.totalClicks += clicks;
         stats.totalTime += seconds;
         localStorage.setItem('hamichlol_pro_stats', JSON.stringify(stats));
-
         document.getElementById('win-summary').innerText = `הגעת אל "${targetTitle}" ב-${clicks} צעדים!`;
         document.getElementById('stat-wins').innerText = stats.totalWins;
         document.getElementById('stat-avg').innerText = (stats.totalClicks / stats.totalWins).toFixed(1);
@@ -350,9 +345,7 @@
         }
     }
 
-    function confirmNewGame() {
-        if(confirm("להתחיל משחק חדש?")) location.reload();
-    }
+    function confirmNewGame() { if(confirm("להתחיל משחק חדש?")) location.reload(); }
 
     async function getRandomArticle() {
         const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`);
@@ -377,11 +370,8 @@
         const saved = localStorage.getItem('hamichlol_race_active');
         if (saved) {
             const data = JSON.parse(saved);
-            clicks = data.clicks;
-            seconds = data.seconds;
-            targetTitle = data.targetTitle;
-            historyStack = data.historyStack;
-            hintsLeft = data.hintsLeft;
+            clicks = data.clicks; seconds = data.seconds; targetTitle = data.targetTitle;
+            historyStack = data.historyStack; hintsLeft = data.hintsLeft;
             document.getElementById('click-count').innerText = clicks;
             setupGame(data.current, targetTitle, true);
         }
