@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0337BRSKEV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-0337BRSKEV');
+    </script>
+
     <meta charset="UTF-8">
     <title>מרוץ המכלול - Elite Ultimate Edition</title>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -349,6 +358,15 @@
         document.getElementById('stat-wins').innerText = stats.totalWins;
         document.getElementById('stat-avg').innerText = (stats.totalClicks / stats.totalWins).toFixed(1);
         document.getElementById('win-screen').style.display = 'flex';
+        
+        // שליחת אירוע ניצחון לגוגל אנליטיקס
+        if (typeof gtag === 'function') {
+            gtag('event', 'game_win', {
+                'clicks': clicks,
+                'seconds': seconds,
+                'target': targetTitle
+            });
+        }
     }
 
     function startTimer() {
@@ -372,8 +390,8 @@
 
     function confirmNewGame() { 
         if(confirm("להתחיל משחק חדש? כל ההתקדמות הנוכחית תימחק.")) {
-            localStorage.removeItem('hamichlol_race_active'); // ניקוי המשחק השמור
-            location.reload(); // טעינה מחדש של הדף למסך הבית
+            localStorage.removeItem('hamichlol_race_active'); 
+            location.reload(); 
         }
     }
 
