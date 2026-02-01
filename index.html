@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>מרוץ המכלול - Professional Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --glass: rgba(255, 255, 255, 0.95);
+            --primary: #0f172a; 
+            --accent: #3b82f6; 
+            --success: #10b981;
+            --danger: #ef4444;
+            --gold: #f59e0b;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        body { 
+            font-family: 'Assistant', sans-serif; 
+            margin: 0; 
+            background: #f8fafc; 
+            color: var(--primary);
+            line-height: 1.6;
+        }
+
+        #header { 
+            position: sticky; top: 0; background: var(--primary); color: white; 
+            padding: 15px 30px; display: flex; justify-content: space-between; 
+            align-items: center; z-index: 100; box-shadow: var(--shadow);
+        }
+
+        .stat-box { text-align: center; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 8px; }
+        .stat-val { font-weight: 800; color: var(--accent); font-size: 1.3em; display: block; }
+        .sub-stat { font-size: 0.7em; color: #94a3b8; display: block; margin-top: 2px; }
+
+        #content-area { 
+            max-width: 900px; margin: 30px auto; background: var(--glass); padding: 50px; 
+            border-radius: 20px; box-shadow: var(--shadow); min-height: 80vh;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .fade-in { opacity: 1; transform: translateY(0); }
+        .fade-out { opacity: 0; transform: translateY(10px); }
+
+        #content-area a { 
+            color: var(--accent) !important; text-decoration: none !important; 
+            border-bottom: 1px solid transparent; transition: 0.2s; font-weight: 600;
+        }
+        #content-area a:hover { border-bottom: 1px solid var(--accent); background: rgba(59, 130, 246, 0.05); }
+
+        #hint-section { margin-top: 10px; display: flex; gap: 10px; align-items: center; }
+        .hint-btn { background: var(--gold); color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.9em; }
+        .hint-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        .overlay { 
+            position: fixed; inset: 0; background: var(--primary); 
+            display: flex; flex-direction: column; justify-content: center; 
+            align-items: center; color: white; z-index: 1000; text-align: center;
+        }
+
+        .card { 
+            background: rgba(255,255,255,0.05); padding: 40px; border-radius: 24px; 
+            border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+            width: 450px;
+        }
+
+        .btn { 
+            background: var(--accent); color: white; border: none; padding: 14px 28px; 
+            font-size: 1.1em; cursor: pointer; border-radius: 12px; font-weight: bold; 
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3); }
+
+        input { 
+            width: 90%; padding: 12px; margin: 8px 0; border-radius: 10px; border: none; 
+            background: rgba(255,255,255,0.9); font-family: inherit; font-size: 1em;
+        }
+
+        .mw-editsection, .noprint, .ambox, .infobox, .navbox, .hatnote, #catlinks { display: none !important; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <button class="btn" style="background:rgba(255,255,255,0.1); font-size: 0.9em;" onclick="goBack()">↩ חזור</button>
+    
+    <div style="display:flex; gap:20px;">
+        <div class="stat-box">
+            יעד <span id="target-label" class="stat-val">---</span>
+            <span id="target-links-header" class="sub-stat">0 קישורים</span>
+        </div>
+        <div class="stat-box">צעדים <span id="click-count" class="stat-val">0</span></div>
+        <div class="stat-box">זמן <span id="timer" class="stat-val">00:00</span></div>
+    </div>
+
+    <div id="hint-section">
+        <button id="hint-btn" class="hint-btn" onclick="useHint()">💡 רמז (<span id="hints-left">3</span>)</button>
+    </div>
+</div>
+
+<div id="content-area" class="fade-in"></div>
+
+<div id="start-screen" class="overlay">
+    <div class="card">
+        <h1 style="font-size: 3em; margin: 0 0 10px 0; letter-spacing: -1px;">מרוץ המכלול</h1>
+        <p style="color: #94a3b8; margin-bottom: 30px;">Professional Edition</p>
+        
+        <div id="status-message" style="color: var(--gold); margin-bottom: 15px; font-weight: bold; min-height: 1.5em;"></div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 30px;">
+            <button class="btn" style="background:#334155" onclick="startExtreme(25)">קל</button>
+            <button class="btn" style="background:#1e293b" onclick="startExtreme(9)">בינוני</button>
+            <button class="btn" style="background:var(--danger)" onclick="startExtreme(3)">קשה</button>
+        </div>
+
+        <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+            <p>אתגר מותאם אישית</p>
+            <input type="text" id="custom-start" placeholder="ערך התחלה">
+            <input type="text" id="custom-target" placeholder="ערך יעד">
+            <div id="custom-actions">
+                <button class="btn" style="width:100%; margin-top: 10px;" onclick="checkCustomAccessibility()">בדוק רמת קושי</button>
+            </div>
+            <div id="custom-result" class="hidden" style="margin-top:15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px;">
+                <p id="link-stats"></p>
+                <button class="btn" style="background:var(--success)" onclick="executeCustomGame()">התחל משחק</button>
+                <button class="btn" style="background:#475569" onclick="resetCustomFields()">שנה</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="win-screen" class="overlay hidden" style="background: var(--success)">
+    <h1 style="font-size: 5em; margin: 0;">🏆 מדהים!</h1>
+    <p id="summary" style="font-size: 1.8em; margin: 20px 0;"></p>
+    <button class="btn" style="background:white; color:var(--success); padding: 20px 60px;" onclick="location.reload()">משחק חדש</button>
+</div>
+
+<script>
+    let clicks = 0, seconds = 0, timerInterval, targetTitle = "", historyStack = [], targetLinksCount = 0;
+    let hintsLeft = 3, pendingStart = "", pendingTarget = "";
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(freq, type = 'sine', duration = 0.1) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    async function getBacklinksCount(title) {
+        const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(title)}&blnamespace=0&bllimit=50&format=json&origin=*`);
+        const data = await res.json();
+        return data.query.backlinks ? data.query.backlinks : [];
+    }
+
+    async function useHint() {
+        if (hintsLeft <= 0) return;
+        playSound(440, 'triangle', 0.2);
+        const links = await getBacklinksCount(targetTitle);
+        if (links.length > 0) {
+            const randomHint = links[Math.floor(Math.random() * links.length)].title;
+            alert(`💡 רמז: הדף "${randomHint}" מכיל קישור ישיר ליעד.`);
+            hintsLeft--;
+            document.getElementById('hints-left').innerText = hintsLeft;
+            if (hintsLeft === 0) document.getElementById('hint-btn').disabled = true;
+        }
+    }
+
+    async function getRandomArticle() {
+        const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`);
+        const data = await res.json();
+        return data.query.random[0].title;
+    }
+
+    async function startExtreme(minLinks) {
+        const status = document.getElementById('status-message');
+        status.innerText = "מנתח את מפת הערכים...";
+        playSound(600, 'sine', 0.05);
+        try {
+            const start = await getRandomArticle();
+            let target = "", count = 0, found = false;
+            while (!found) {
+                target = await getRandomArticle();
+                const links = await getBacklinksCount(target);
+                count = links.length;
+                if (count >= minLinks) {
+                    found = true;
+                } else {
+                    status.innerText = `מדלג על "${target}" (${count} קישורים)...`;
+                }
+            }
+            targetLinksCount = count;
+            setupGame(start, target);
+        } catch (e) { alert("שגיאה ברשת"); }
+    }
+
+    async function checkCustomAccessibility() {
+        const s = document.getElementById('custom-start').value.trim();
+        const t = document.getElementById('custom-target').value.trim();
+        if(!s || !t) return;
+        playSound(800, 'sine', 0.05);
+        const links = await getBacklinksCount(t);
+        targetLinksCount = links.length;
+        pendingStart = s; pendingTarget = t;
+        document.getElementById('link-stats').innerHTML = `יעד: <b>${t}</b><br>קישורים נכנסים: <b>${targetLinksCount}</b>`;
+        document.getElementById('custom-result').classList.remove('hidden');
+        document.getElementById('custom-actions').classList.add('hidden');
+    }
+
+    function resetCustomFields() {
+        document.getElementById('custom-result').classList.add('hidden');
+        document.getElementById('custom-actions').classList.remove('hidden');
+    }
+
+    function executeCustomGame() {
+        playSound(1000, 'sine', 0.2);
+        setupGame(pendingStart, pendingTarget);
+    }
+
+    function setupGame(start, target) {
+        targetTitle = target;
+        document.getElementById('target-label').innerText = target;
+        document.getElementById('target-links-header').innerText = `${targetLinksCount} קישורים נכנסים`;
+        document.getElementById('start-screen').classList.add('hidden');
+        startTimer();
+        loadArticle(start);
+    }
+
+    async function loadArticle(title, isBack = false) {
+        const area = document.getElementById('content-area');
+        area.classList.add('fade-out');
+        
+        setTimeout(async () => {
+            try {
+                const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=parse&page=${encodeURIComponent(title)}&format=json&origin=*&prop=text|displaytitle&redirects=1`);
+                const data = await res.json();
+                if (data.parse) {
+                    const currentTitle = data.parse.displaytitle.replace(/<[^>]*>?/gm, '').trim();
+                    area.innerHTML = `<h1 style="font-size:2.5em; border-bottom:4px solid var(--accent); padding-bottom:10px;">${currentTitle}</h1>` + data.parse.text["*"];
+                    if (!isBack) historyStack.push(currentTitle);
+                    if (currentTitle.toLowerCase() === targetTitle.toLowerCase()) win();
+                    window.scrollTo(0,0);
+                }
+                area.classList.remove('fade-out');
+                playSound(500, 'sine', 0.05);
+            } catch (e) { area.innerHTML = "שגיאת טעינה."; }
+        }, 400);
+    }
+
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('#content-area a');
+        if (link) {
+            e.preventDefault();
+            let title = "";
+            let href = link.getAttribute('href') || "";
+            if (href.includes('/wiki/')) title = href.split('/wiki/')[1].split('?')[0].split('#')[0];
+            else if (link.title) title = link.title;
+            if (title && !title.includes(':')) {
+                clicks++;
+                document.getElementById('click-count').innerText = clicks;
+                loadArticle(decodeURIComponent(title));
+            }
+        }
+    });
+
+    function goBack() {
+        if (historyStack.length > 1) {
+            playSound(300, 'sine', 0.1);
+            historyStack.pop();
+            loadArticle(historyStack[historyStack.length - 1], true);
+            clicks++;
+            document.getElementById('click-count').innerText = clicks;
+        }
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            seconds++;
+            const m = Math.floor(seconds/60).toString().padStart(2,'0');
+            const s = (seconds%60).toString().padStart(2,'0');
+            document.getElementById('timer').innerText = `${m}:${s}`;
+        }, 1000);
+    }
+
+    function win() {
+        clearInterval(timerInterval);
+        playSound(523.25, 'square', 0.3);
+        setTimeout(() => playSound(659.25, 'square', 0.3), 150);
+        setTimeout(() => playSound(783.99, 'square', 0.5), 300);
+        document.getElementById('win-screen').classList.remove('hidden');
+        document.getElementById('summary').innerText = `הגעת ליעד ב-${clicks} צעדים!`;
+    }
+</script>
+</body>
+</html>
