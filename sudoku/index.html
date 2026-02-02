@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סודוקו - פרוטוקול תעשייתי סופי</title>
+    
+    <style>
+        :root {
+            --metal-bg: #0a0a0c;
+            --steel-panel: linear-gradient(180deg, #333 0%, #111 100%);
+            --neon-cyan: #00f2ff;
+            --neon-glow: 0 0 15px rgba(0, 242, 255, 0.6);
+            --error-red: #ff003c;
+            --text-silver: #c0c0c0;
+        }
+
+        body {
+            background-color: var(--metal-bg);
+            background-image: radial-gradient(circle at center, #1a1a20 0%, #050505 100%);
+            color: var(--text-silver);
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; margin: 0; padding: 20px;
+        }
+
+        .top-panel, .stat-panel {
+            background: var(--steel-panel);
+            border: 2px solid #444; padding: 15px 25px; border-radius: 8px;
+            display: flex; gap: 15px; margin-bottom: 25px;
+            box-shadow: inset 0 0 10px #000, 5px 5px 20px rgba(0,0,0,0.8);
+            align-items: center; justify-content: center;
+        }
+
+        .timer-display {
+            font-family: 'Courier New', monospace;
+            color: var(--neon-cyan); font-size: 1.6rem;
+            text-shadow: var(--neon-glow); min-width: 100px; text-align: center;
+        }
+
+        .grid {
+            display: grid; grid-template-columns: repeat(9, 55px);
+            grid-template-rows: repeat(9, 55px);
+            background: #000; border: 4px solid #555; gap: 1px;
+        }
+
+        .cell {
+            background: #18181a; position: relative; cursor: pointer;
+            transition: all 0.2s; border: 1px solid #222;
+        }
+
+        .cell.selected { background: #2a2a2e; box-shadow: inset 0 0 12px var(--neon-cyan); z-index: 10; }
+        .cell.fixed .cell-value { color: #fff; text-shadow: 0 0 2px #ccc; }
+        .cell.user-added .cell-value { color: var(--neon-cyan); text-shadow: var(--neon-glow); }
+
+        .cell:nth-child(3n) { border-left: 3px solid #555; }
+        .cell:nth-child(9n) { border-left: 1px solid #222; }
+        .grid > div:nth-child(n+19):nth-child(-n+27),
+        .grid > div:nth-child(n+46):nth-child(-n+54) { border-bottom: 3px solid #555; }
+
+        .cell-value {
+            position: absolute; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem; font-weight: bold; pointer-events: none;
+        }
+
+        .complete-anim { animation: metal-spark 0.7s ease-out; }
+        @keyframes metal-spark {
+            0% { background: #18181a; }
+            50% { background: var(--neon-cyan); box-shadow: 0 0 30px var(--neon-cyan); filter: brightness(1.5); }
+            100% { background: #18181a; }
+        }
+
+        .notes-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            width: 100%; height: 100%; padding: 2px; pointer-events: none;
+        }
+        .note-digit { font-size: 0.7rem; color: #666; display: flex; align-items: center; justify-content: center; }
+
+        .btn {
+            background: #222; border: 1px solid #555; color: #888;
+            padding: 10px 20px; cursor: pointer; font-weight: bold;
+            text-transform: uppercase; transition: 0.3s; text-decoration: none;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn:hover { border-color: var(--neon-cyan); color: #fff; }
+        .btn.active { background: var(--neon-cyan); color: #000; box-shadow: var(--neon-glow); }
+
+        .numpad { display: flex; gap: 8px; margin-top: 25px; flex-wrap: wrap; justify-content: center; }
+        .num-btn { width: 50px; height: 50px; border-radius: 4px; font-size: 1.2rem; }
+
+        .stat-panel { margin-top: 20px; font-size: 0.9rem; flex-direction: column; width: 350px; gap: 8px; }
+        .stat-line { display: flex; justify-content: space-between; width: 100%; border-bottom: 1px solid #333; padding-bottom: 4px; }
+
+        .shake { animation: shake 0.3s; }
+        @keyframes shake {
+            20% { transform: translateX(-5px); background: var(--error-red); }
+            60% { transform: translateX(5px); }
+        }
+
+        #winOverlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 100;
+            flex-direction: column; align-items: center; justify-content: center;
+            border: 10px solid var(--neon-cyan);
+        }
+
+        .donate-link { color: var(--neon-cyan); text-decoration: none; font-size: 0.8rem; margin-top: 10px; border-bottom: 1px solid transparent; transition: 0.3s; }
+        .donate-link:hover { border-bottom-color: var(--neon-cyan); }
+
+        /* סגנון כפתור תרומה בולט למסך ניצחון */
+        .win-donate-btn {
+            background: var(--neon-cyan);
+            color: #000;
+            padding: 12px 25px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-bottom: 20px;
+            box-shadow: var(--neon-glow);
+            transition: transform 0.2s;
+        }
+        .win-donate-btn:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+    <div class="top-panel">
+        <a href="../index.html" class="btn" style="border-color: #666;">חזרה</a>
+        <select id="difficulty" class="btn" onchange="confirmNewGame()">
+            <option value="easy">רמה: טירון</option>
+            <option value="medium" selected>רמה: ותיק</option>
+            <option value="hard">רמה: עלית</option>
+        </select>
+        <div class="timer-display" id="timer">00:00</div>
+        <button class="btn" id="noteToggle" onclick="toggleNoteMode()">הערות (Ctrl)</button>
+        <button class="btn" onclick="confirmNewGame()">חדש</button>
+        <button class="btn" style="color:var(--neon-cyan)" onclick="checkSolutionManually()">אימות</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="numpad">
+        <button class="btn num-btn" onclick="inputNumber(1)">1</button>
+        <button class="btn num-btn" onclick="inputNumber(2)">2</button>
+        <button class="btn num-btn" onclick="inputNumber(3)">3</button>
+        <button class="btn num-btn" onclick="inputNumber(4)">4</button>
+        <button class="btn num-btn" onclick="inputNumber(5)">5</button>
+        <button class="btn num-btn" onclick="inputNumber(6)">6</button>
+        <button class="btn num-btn" onclick="inputNumber(7)">7</button>
+        <button class="btn num-btn" onclick="inputNumber(8)">8</button>
+        <button class="btn num-btn" onclick="inputNumber(9)">9</button>
+        <button class="btn" onclick="inputNumber(0)" style="width: 100px;">מחיקה</button>
+    </div>
+
+    <div class="stat-panel">
+        <div class="stat-line"><span>סך הכל פריצות שהושלמו:</span> <span id="stat-total">0</span></div>
+        <div class="stat-line"><span>שיא אישי לרמה נוכחית:</span> <span id="stat-best">--:--</span></div>
+        <a href="https://ko-fi.com/shaulnac" target="_blank" class="donate-link">תמיכה בפיתוח הפרוטוקול</a>
+    </div>
+
+    <div id="winOverlay">
+        <h1 style="color:var(--neon-cyan); text-shadow: var(--neon-glow); font-size: 3rem;">הפריצה הושלמה</h1>
+        <p id="winDetails" style="font-size: 1.5rem;"></p>
+        <a href="https://ko-fi.com/shaulnac" target="_blank" class="win-donate-btn">תמיכה בפרויקט (תרומה)</a>
+        <button class="btn" onclick="closeWin()" style="padding: 15px 40px; font-size: 1.2rem;">המשך</button>
+    </div>
+
+    <script>
+        let grid = [], solution = [], fixed = [], notes = [], selectedIdx = null;
+        let isNoteMode = false, seconds = 0, timerActive = false;
+        let stats = JSON.parse(localStorage.getItem('sudoku_stats_v2')) || { easy: null, medium: null, hard: null, total: 0 };
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, dur, vol=0.1) {
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + dur);
+        }
+
+        setInterval(() => {
+            if (timerActive && document.visibilityState === 'visible') {
+                seconds++;
+                updateTimerDisplay();
+                saveCurrentState();
+            }
+        }, 1000);
+
+        function updateTimerDisplay() {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('timer').innerText = `${m}:${s}`;
+        }
+
+        function saveCurrentState() {
+            const state = { grid, solution, fixed, seconds, notes: notes.map(s => Array.from(s)) };
+            localStorage.setItem('sudoku_current_save', JSON.stringify(state));
+        }
+
+        function loadGameState() {
+            const saved = localStorage.getItem('sudoku_current_save');
+            if (saved) {
+                const data = JSON.parse(saved);
+                grid = data.grid;
+                solution = data.solution;
+                fixed = data.fixed;
+                seconds = data.seconds;
+                notes = data.notes.map(arr => new Set(arr));
+                timerActive = true;
+                updateTimerDisplay();
+                renderGrid();
+                return true;
+            }
+            return false;
+        }
+
+        function isPosValid(b, idx, n) {
+            let r = Math.floor(idx/9), c = idx%9;
+            for(let i=0; i<9; i++) if(b[r*9+i] === n || b[i*9+c] === n) return false;
+            let sr=r-r%3, sc=c-c%3;
+            for(let i=0; i<3; i++) for(let j=0; j<3; j++) if(b[(i+sr)*9+(j+sc)] === n) return false;
+            return true;
+        }
+
+        function solveBoard(b) {
+            for (let i = 0; i < 81; i++) {
+                if (b[i] === 0) {
+                    let nums = [1,2,3,4,5,6,7,8,9].sort(() => Math.random() - 0.5);
+                    for (let n of nums) {
+                        if (isPosValid(b, i, n)) {
+                            b[i] = n; if (solveBoard(b)) return true; b[i] = 0;
+                        }
+                    } return false;
+                }
+            } return true;
+        }
+
+        function confirmNewGame() {
+            if (confirm("האם ברצונך לנטוש את האתגר הנוכחי ולהתחיל מחדש?")) newGame();
+        }
+
+        function newGame() {
+            let b = Array(81).fill(0); solveBoard(b); solution = [...b]; grid = [...b]; fixed = Array(81).fill(true);
+            const d = document.getElementById('difficulty').value;
+            const count = d === 'easy' ? 30 : d === 'medium' ? 45 : 58;
+            let rem = 0;
+            while(rem < count) {
+                let i = Math.floor(Math.random()*81);
+                if(grid[i] !== 0) { grid[i] = 0; fixed[i] = false; rem++; }
+            }
+            notes = Array.from({length: 81}, () => new Set());
+            seconds = 0; timerActive = true;
+            updateStatsUI();
+            renderGrid();
+            saveCurrentState();
+        }
+
+        function checkImpact(idx) {
+            const r = Math.floor(idx/9), c = idx%9, sr = r - r%3, sc = c - c%3;
+            const triggerAnim = (indices) => {
+                if (indices.every(i => grid[i] !== 0)) {
+                    indices.forEach(i => {
+                        const cell = document.querySelectorAll('.cell')[i];
+                        if(cell) {
+                            cell.classList.remove('complete-anim');
+                            void cell.offsetWidth;
+                            cell.classList.add('complete-anim');
+                        }
+                    });
+                    playTone(800, 'square', 0.2);
+                }
+            };
+            triggerAnim(Array.from({length:9}, (_, i) => r*9 + i));
+            triggerAnim(Array.from({length:9}, (_, i) => i*9 + c));
+            let box = [];
+            for(let i=0; i<3; i++) for(let j=0; j<3; j++) box.push((sr+i)*9 + (sc+j));
+            triggerAnim(box);
+        }
+
+        function inputNumber(num) {
+            if (selectedIdx === null || fixed[selectedIdx]) return;
+            if (num === 0) { grid[selectedIdx] = 0; notes[selectedIdx].clear(); renderCell(selectedIdx); return; }
+
+            if (isNoteMode) {
+                grid[selectedIdx] = 0;
+                notes[selectedIdx].has(num) ? notes[selectedIdx].delete(num) : notes[selectedIdx].add(num);
+                playTone(600, 'sine', 0.05);
+            } else {
+                let r = Math.floor(selectedIdx/9), c = selectedIdx%9, sr = r - r%3, sc = c - c%3;
+                let conflict = false;
+                for(let i=0; i<9; i++) if(grid[r*9+i] === num || grid[i*9+c] === num) conflict = true;
+                for(let i=0; i<3; i++) for(let j=0; j<3; j++) if(grid[(sr+i)*9 + (sc+j)] === num) conflict = true;
+
+                if(conflict) {
+                    playTone(150, 'sawtooth', 0.3);
+                    document.querySelectorAll('.cell')[selectedIdx].classList.add('shake');
+                    setTimeout(() => { if(document.querySelectorAll('.cell')[selectedIdx]) document.querySelectorAll('.cell')[selectedIdx].classList.remove('shake')}, 300);
+                } else {
+                    playTone(800, 'sine', 0.05);
+                    grid[selectedIdx] = num; notes[selectedIdx].clear();
+                    checkImpact(selectedIdx);
+                    if (grid.every(v => v !== 0)) checkFinalWin();
+                }
+            }
+            renderCell(selectedIdx);
+            saveCurrentState();
+        }
+
+        function checkFinalWin() {
+            if (grid.every((v, i) => v === solution[i])) {
+                timerActive = false;
+                localStorage.removeItem('sudoku_current_save');
+                const d = document.getElementById('difficulty').value;
+                stats.total++;
+                if (!stats[d] || seconds < stats[d]) stats[d] = seconds;
+                localStorage.setItem('sudoku_stats_v2', JSON.stringify(stats));
+                
+                playTone(400, 'square', 0.2); 
+                setTimeout(()=>playTone(600,'square', 0.2), 150);
+                setTimeout(()=>playTone(900,'square', 0.4), 300);
+
+                document.getElementById('winDetails').innerText = `זמן ביצוע: ${document.getElementById('timer').innerText}`;
+                document.getElementById('winOverlay').style.display = 'flex';
+            }
+        }
+
+        function updateStatsUI() {
+            const d = document.getElementById('difficulty').value;
+            document.getElementById('stat-total').innerText = stats.total;
+            const s = stats[d];
+            document.getElementById('stat-best').innerText = s ? `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}` : '--:--';
+        }
+
+        function renderGrid() {
+            const el = document.getElementById('grid'); el.innerHTML = '';
+            for (let i = 0; i < 81; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.onclick = () => {
+                    if (selectedIdx !== null && document.querySelectorAll('.cell')[selectedIdx]) 
+                        document.querySelectorAll('.cell')[selectedIdx].classList.remove('selected');
+                    selectedIdx = i; cell.classList.add('selected');
+                    playTone(500, 'sine', 0.02);
+                };
+                el.appendChild(cell); renderCell(i, cell);
+            }
+            updateStatsUI();
+        }
+
+        function renderCell(idx, cellEl) {
+            const cell = cellEl || document.querySelectorAll('.cell')[idx];
+            if(!cell) return;
+            cell.innerHTML = '';
+            cell.className = 'cell' + (fixed[idx] ? ' fixed' : ' user-added') + (selectedIdx === idx ? ' selected' : '');
+            if (grid[idx] !== 0) {
+                const v = document.createElement('div'); v.className = 'cell-value'; v.innerText = grid[idx]; cell.appendChild(v);
+            } else {
+                const nG = document.createElement('div'); nG.className = 'notes-grid';
+                for (let n = 1; n <= 9; n++) {
+                    const nD = document.createElement('div'); nD.className = 'note-digit';
+                    nD.innerText = notes[idx].has(n) ? n : ''; nG.appendChild(nD);
+                }
+                cell.appendChild(nG);
+            }
+        }
+
+        function toggleNoteMode() {
+            isNoteMode = !isNoteMode;
+            document.getElementById('noteToggle').classList.toggle('active', isNoteMode);
+        }
+
+        function checkSolutionManually() {
+            if (grid.every((v, i) => v === solution[i])) checkFinalWin();
+            else { playTone(100, 'sawtooth', 0.5); alert("שגיאת מערכת: הנתונים אינם תואמים לפרוטוקול."); }
+        }
+
+        function closeWin() { document.getElementById('winOverlay').style.display = 'none'; newGame(); }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key >= '1' && e.key <= '9') { e.preventDefault(); inputNumber(parseInt(e.key)); return; }
+            if (e.key >= '1' && e.key <= '9') inputNumber(parseInt(e.key));
+            if (e.key === '0' || e.key === 'Backspace' || e.key === 'Delete') inputNumber(0);
+            if (e.key === 'Control') { e.preventDefault(); if(!isNoteMode) toggleNoteMode(); }
+        });
+
+        window.addEventListener('keyup', (e) => { if (e.key === 'Control' && isNoteMode) toggleNoteMode(); });
+
+        window.onload = () => {
+            if (!loadGameState()) newGame();
+        };
+    </script>
+</body>
+</html>
