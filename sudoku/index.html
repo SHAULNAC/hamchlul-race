@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>סודוקו - פרוטוקול תעשייתי סופי</title>
+    <title>סודוקו - פרוטוקול תעשייתי</title>
     
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-TR4BMGFB01"></script>
     <script>
@@ -117,7 +117,6 @@
         .donate-link { color: var(--neon-cyan); text-decoration: none; font-size: 0.8rem; margin-top: 10px; border-bottom: 1px solid transparent; transition: 0.3s; }
         .donate-link:hover { border-bottom-color: var(--neon-cyan); }
 
-        /* סגנון כפתור תרומה בולט למסך ניצחון */
         .win-donate-btn {
             background: var(--neon-cyan);
             color: #000;
@@ -165,7 +164,7 @@
     <div class="stat-panel">
         <div class="stat-line"><span>סך הכל פריצות שהושלמו:</span> <span id="stat-total">0</span></div>
         <div class="stat-line"><span>שיא אישי לרמה נוכחית:</span> <span id="stat-best">--:--</span></div>
-        <a href="https://ko-fi.com/shaulnac" target="_blank" class="donate-link">תמיכה בפיתוח הפרוטוקול</a>
+        <a href="https://ko-fi.com/shaulnac" target="_blank" class="donate-link">תמיכה בפיתוח </a>
     </div>
 
     <div id="winOverlay">
@@ -205,7 +204,7 @@
         }
 
         function saveCurrentState() {
-            const state = { grid, solution, fixed, seconds, notes: notes.map(s => Array.from(s)) };
+            const state = { grid, solution, fixed, seconds, notes: notes.map(s => Array.from(s)), selectedIdx };
             localStorage.setItem('sudoku_current_save', JSON.stringify(state));
         }
 
@@ -218,6 +217,7 @@
                 fixed = data.fixed;
                 seconds = data.seconds;
                 notes = data.notes.map(arr => new Set(arr));
+                selectedIdx = data.selectedIdx !== undefined ? data.selectedIdx : null;
                 timerActive = true;
                 updateTimerDisplay();
                 renderGrid();
@@ -261,9 +261,21 @@
                 if(grid[i] !== 0) { grid[i] = 0; fixed[i] = false; rem++; }
             }
             notes = Array.from({length: 81}, () => new Set());
-            seconds = 0; timerActive = true;
+            seconds = 0; timerActive = true; selectedIdx = null;
             updateStatsUI();
             renderGrid();
+            saveCurrentState();
+        }
+
+        function selectCell(idx) {
+            if (selectedIdx !== null) {
+                const prev = document.querySelectorAll('.cell')[selectedIdx];
+                if (prev) prev.classList.remove('selected');
+            }
+            selectedIdx = idx;
+            const curr = document.querySelectorAll('.cell')[selectedIdx];
+            if (curr) curr.classList.add('selected');
+            playTone(500, 'sine', 0.02);
             saveCurrentState();
         }
 
@@ -318,8 +330,31 @@
             saveCurrentState();
         }
 
+        function isValidSudoku(board) {
+            const check = (arr) => {
+                const s = new Set(arr.filter(v => v !== 0));
+                return s.size === 9 && !arr.includes(0);
+            };
+            for (let i = 0; i < 9; i++) {
+                if (!check(board.slice(i * 9, i * 9 + 9))) return false;
+                let col = [];
+                for (let j = 0; j < 9; j++) col.push(board[j * 9 + i]);
+                if (!check(col)) return false;
+            }
+            for (let r = 0; r < 9; r += 3) {
+                for (let c = 0; c < 9; c += 3) {
+                    let box = [];
+                    for (let i = 0; i < 3; i++) {
+                        for (let j = 0; j < 3; j++) box.push(board[(r + i) * 9 + (c + j)]);
+                    }
+                    if (!check(box)) return false;
+                }
+            }
+            return true;
+        }
+
         function checkFinalWin() {
-            if (grid.every((v, i) => v === solution[i])) {
+            if (grid.every(v => v !== 0) && isValidSudoku(grid)) {
                 timerActive = false;
                 localStorage.removeItem('sudoku_current_save');
                 const d = document.getElementById('difficulty').value;
@@ -348,12 +383,7 @@
             for (let i = 0; i < 81; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'cell';
-                cell.onclick = () => {
-                    if (selectedIdx !== null && document.querySelectorAll('.cell')[selectedIdx]) 
-                        document.querySelectorAll('.cell')[selectedIdx].classList.remove('selected');
-                    selectedIdx = i; cell.classList.add('selected');
-                    playTone(500, 'sine', 0.02);
-                };
+                cell.onclick = () => selectCell(i);
                 el.appendChild(cell); renderCell(i, cell);
             }
             updateStatsUI();
@@ -382,17 +412,29 @@
         }
 
         function checkSolutionManually() {
-            if (grid.every((v, i) => v === solution[i])) checkFinalWin();
+            if (grid.every(v => v !== 0) && isValidSudoku(grid)) checkFinalWin();
             else { playTone(100, 'sawtooth', 0.5); alert("שגיאת מערכת: הנתונים אינם תואמים לפרוטוקול."); }
         }
 
         function closeWin() { document.getElementById('winOverlay').style.display = 'none'; newGame(); }
 
         window.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key >= '1' && e.key <= '9') { e.preventDefault(); inputNumber(parseInt(e.key)); return; }
-            if (e.key >= '1' && e.key <= '9') inputNumber(parseInt(e.key));
-            if (e.key === '0' || e.key === 'Backspace' || e.key === 'Delete') inputNumber(0);
-            if (e.key === 'Control') { e.preventDefault(); if(!isNoteMode) toggleNoteMode(); }
+            if (selectedIdx === null) {
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) selectCell(40);
+                return;
+            }
+
+            let r = Math.floor(selectedIdx / 9);
+            let c = selectedIdx % 9;
+
+            if (e.key === 'ArrowUp') { e.preventDefault(); selectCell(((r - 1 + 9) % 9) * 9 + c); }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); selectCell(((r + 1) % 9) * 9 + c); }
+            else if (e.key === 'ArrowLeft') { e.preventDefault(); selectCell(r * 9 + ((c + 1) % 9)); }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); selectCell(r * 9 + ((c - 1 + 9) % 9)); }
+            else if (e.ctrlKey && e.key >= '1' && e.key <= '9') { e.preventDefault(); inputNumber(parseInt(e.key)); }
+            else if (e.key >= '1' && e.key <= '9') inputNumber(parseInt(e.key));
+            else if (e.key === '0' || e.key === 'Backspace' || e.key === 'Delete') inputNumber(0);
+            else if (e.key === 'Control') { e.preventDefault(); if(!isNoteMode) toggleNoteMode(); }
         });
 
         window.addEventListener('keyup', (e) => { if (e.key === 'Control' && isNoteMode) toggleNoteMode(); });
