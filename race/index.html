@@ -90,13 +90,22 @@
             position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98);
             backdrop-filter: blur(20px); display: none; flex-direction: column;
             justify-content: center; align-items: center; z-index: 5000; color: white;
+            overflow-y: auto; padding: 20px;
         }
 
         .win-card {
             background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
-            padding: 50px; border-radius: 40px; border: 1px solid rgba(255,255,255,0.15);
-            text-align: center; max-width: 500px;
+            padding: 40px; border-radius: 40px; border: 1px solid rgba(255,255,255,0.15);
+            text-align: center; max-width: 500px; width: 90%;
         }
+
+        .path-list {
+            text-align: right; background: rgba(255,255,255,0.05); padding: 15px;
+            border-radius: 15px; margin: 20px 0; max-height: 200px; overflow-y: auto;
+            font-size: 0.9em; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .path-step { display: block; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .path-step:last-child { border: none; color: var(--success); font-weight: bold; }
 
         .btn { 
             background: var(--accent); color: white; border: none; padding: 14px 28px; 
@@ -176,13 +185,20 @@
 <div id="win-screen">
     <div class="win-card">
         <div style="font-size: 5em;">🏆</div>
-        <h1 style="font-size:4em; margin:0; color:white;">הצלחת!</h1>
-        <p id="win-summary" style="font-size:1.6em; margin:20px 0;"></p>
-        <div style="display:flex; gap:15px; justify-content:center; margin-bottom:30px;">
+        <h1 style="font-size:3em; margin:0; color:white;">הצלחת!</h1>
+        <p id="win-summary" style="font-size:1.4em; margin:15px 0;"></p>
+        
+        <div id="final-path" class="path-list"></div>
+
+        <div style="display:flex; gap:15px; justify-content:center; margin-bottom:20px;">
             <div class="stat-box"><span class="sub-stat">ניצחונות</span><span id="stat-wins" class="stat-val">0</span></div>
             <div class="stat-box"><span class="sub-stat">ממוצע</span><span id="stat-avg" class="stat-val">0</span></div>
         </div>
-        <button class="btn" style="background:var(--success);" onclick="location.reload()">לאתגר הבא</button>
+        
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            <button class="btn" style="background:var(--success);" onclick="location.reload()">לאתגר הבא</button>
+            <button class="btn" style="background:var(--accent);" onclick="shareResults()">📤 שתף והעתק תוצאה</button>
+        </div>
     </div>
 </div>
 
@@ -347,11 +363,33 @@
         localStorage.removeItem('hamichlol_race_active');
         stats.totalWins++; stats.totalClicks += clicks; stats.totalTime += seconds;
         localStorage.setItem('hamichlol_pro_stats', JSON.stringify(stats));
-        document.getElementById('win-summary').innerText = `הגעת אל "${targetTitle}" ב-${clicks} צעדים!`;
+        
+        document.getElementById('win-summary').innerText = `הגעת אל "${targetTitle}" ב-${clicks} צעדים ובזמן של ${document.getElementById('timer').innerText}!`;
+        
+        const pathEl = document.getElementById('final-path');
+        pathEl.innerHTML = '<b>המסלול שעברת:</b><br>' + 
+            historyStack.map((step, i) => `<span class="path-step">${i+1}. ${step}</span>`).join('');
+
         document.getElementById('stat-wins').innerText = stats.totalWins;
         document.getElementById('stat-avg').innerText = (stats.totalClicks / stats.totalWins).toFixed(1);
         document.getElementById('win-screen').style.display = 'flex';
         gtag('event', 'game_win', {'clicks': clicks});
+    }
+
+    function shareResults() {
+        const timeStr = document.getElementById('timer').innerText;
+        const formattedPath = historyStack.map((step, i) => `${i+1}. ${step}`).join('\n');
+        
+        const text = `🏆 ניצחתי במרוץ המכלול!\n\n📍 יעד: ${targetTitle}\n👣 צעדים: ${clicks}\n⏱️ זמן: ${timeStr}\n\nהמסלול שלי:\n${formattedPath}\n\nמי יכול לנצח אותי?`;
+        
+        // העתקה ללוח (טקסט מעוצב)
+        navigator.clipboard.writeText(text).then(() => {
+            if (navigator.share) {
+                navigator.share({ title: 'מרוץ המכלול - תוצאות', text: text }).catch(() => {});
+            } else {
+                alert("התוצאה המעוצבת הועתקה ללוח!");
+            }
+        });
     }
 
     function startTimer() {
