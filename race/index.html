@@ -54,10 +54,7 @@
             transition: transform 0.4s ease, opacity 0.4s ease;
         }
 
-        .page-transition {
-            transform: translateY(20px);
-            opacity: 0;
-        }
+        .page-transition { transform: translateY(20px); opacity: 0; }
 
         #vertical-tracker {
             position: fixed; left: 50px; top: 50%; transform: translateY(-50%);
@@ -154,6 +151,8 @@
         
         <div id="status-message" style="margin-bottom:20px; color:var(--gold); font-weight:600; min-height:1.2em;"></div>
 
+        <button class="btn" style="width:100%; background: linear-gradient(45deg, #6366f1, #a855f7); font-size: 1.3em; margin-bottom: 20px;" onclick="startDailyChallenge()">🏆 שחק באתגר היומי</button>
+
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:40px;">
             <button class="btn" onclick="startExtreme(60)">יעד מצוי</button>
             <button class="btn" style="background:#1e293b" onclick="startExtreme(35)">יעד סביר</button>
@@ -226,7 +225,7 @@
     }
 
     function clearStats() {
-        if(confirm("למחוק סטטיסטיקה?") && confirm("בטוח?")) {
+        if(confirm("למחוק סטטיסטיקה?")) {
             stats = { totalWins: 0, totalClicks: 0, totalTime: 0 };
             localStorage.setItem('hamichlol_pro_stats', JSON.stringify(stats));
             updateStatsDisplay();
@@ -241,9 +240,9 @@
             const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(targetTitle)}&format=json&origin=*`);
             const data = await res.json();
             const pages = data.query.pages;
-            const extract = pages[Object.keys(pages)[0]].extract || "אין תקציר זמין לערך זה.";
+            const extract = pages[Object.keys(pages)[0]].extract || "אין תקציר זמין.";
             tooltip.innerText = extract.substring(0, 200) + "...";
-        } catch (e) { tooltip.innerText = "שגיאה בטעינת התקציר."; }
+        } catch (e) { tooltip.innerText = "שגיאה בטעינת תקציר."; }
     }
 
     async function validateCustom() {
@@ -285,7 +284,7 @@
     }
 
     async function startExtreme(minLinks) {
-        document.getElementById('status-message').innerText = "מחפש יעד מאתגר...";
+        document.getElementById('status-message').innerText = "מחפש יעד...";
         try {
             const start = await getRandomArticle();
             let target = "", count = 0;
@@ -299,10 +298,62 @@
         } catch (e) { }
     }
 
+    // פונקציית Hash משופרת למניעת התנגשויות (שימוש במספרים ראשוניים גדולים)
+    function getDeterministicHash(str) {
+        let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+        for (let i = 0, ch; i < str.length; i++) {
+            ch = str.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+    }
+
+    async function startDailyChallenge() {
+        document.getElementById('status-message').innerText = "יוצר אתגר יומי...";
+        const dateStr = new Date().toISOString().slice(0, 10);
+        
+        // בחירת מוצא (Hash מבוסס תאריך + "start")
+        const start = await getRandomArticleBySeed(dateStr + "daily_start_v11");
+        
+        // בחירת יעד יציב אך אקראי (Hash מבוסס תאריך + קריטריון קושי)
+        let target = "";
+        let found = false;
+        let attempt = 0;
+        
+        while(!found && attempt < 50) {
+            target = await getRandomArticleBySeed(dateStr + "daily_target_attempt_" + attempt);
+            const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(target)}&blnamespace=0&bllimit=100&format=json&origin=*`);
+            const data = await res.json();
+            const count = data.query.backlinks ? data.query.backlinks.length : 0;
+            
+            // אתגר יומי - יעד ברמת קושי בינונית (15-40 קישורים)
+            if(count >= 15 && count <= 40) {
+                found = true;
+            } else {
+                attempt++;
+            }
+        }
+        
+        setupGame(start, target);
+    }
+
+    async function getRandomArticleBySeed(seed) {
+        const hash = getDeterministicHash(seed);
+        const offset = Math.abs(hash) % 18000; // טווח רחב יותר של ערכים
+        const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=allpages&aplimit=1&apoffset=${offset}&format=json&origin=*`);
+        const data = await res.json();
+        return data.query.allpages[0].title;
+    }
+
     function setupGame(start, target, isResume = false) {
         targetTitle = target;
+        if(!isResume) { clicks = 0; seconds = 0; historyStack = []; hintsLeft = 3; }
         document.getElementById('target-label').innerText = target;
         document.getElementById('target-tooltip').innerText = "טוען תקציר...";
+        document.getElementById('click-count').innerText = clicks;
         document.getElementById('start-screen').style.display = 'none';
         document.getElementById('vertical-tracker').classList.add('active');
         prepareCompass(target);
@@ -313,7 +364,6 @@
     async function loadArticle(title, isBack = false) {
         const area = document.getElementById('content-area');
         area.classList.add('page-transition');
-        
         try {
             const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=parse&page=${encodeURIComponent(title)}&format=json&origin=*&prop=text|displaytitle|links&redirects=1`);
             const data = await res.json();
@@ -321,7 +371,7 @@
                 setTimeout(() => {
                     const current = data.parse.displaytitle.replace(/<[^>]*>?/gm, '');
                     area.innerHTML = `<h1>${current}</h1>` + data.parse.text["*"];
-                    const links = data.parse.links.map(l => l["*"]);
+                    const links = data.parse.links ? data.parse.links.map(l => l["*"]) : [];
                     updateCompass(current, links);
                     if (!isBack) historyStack.push(current);
                     saveGameState(current);
@@ -330,10 +380,7 @@
                     area.classList.remove('page-transition');
                 }, 400);
             }
-        } catch (e) { 
-            area.innerText = "שגיאה"; 
-            area.classList.remove('page-transition');
-        }
+        } catch (e) { area.classList.remove('page-transition'); }
     }
 
     document.addEventListener('click', e => {
@@ -357,19 +404,12 @@
     function win() {
         clearInterval(timerInterval);
         playClickSound(523.25, 'sine', 0.5); 
-        setTimeout(() => playClickSound(659.25, 'sine', 0.5), 150);
-        setTimeout(() => playClickSound(783.99, 'sine', 0.7), 300);
-        
         localStorage.removeItem('hamichlol_race_active');
         stats.totalWins++; stats.totalClicks += clicks; stats.totalTime += seconds;
         localStorage.setItem('hamichlol_pro_stats', JSON.stringify(stats));
-        
-        document.getElementById('win-summary').innerText = `הגעת אל "${targetTitle}" ב-${clicks} צעדים ובזמן של ${document.getElementById('timer').innerText}!`;
-        
+        document.getElementById('win-summary').innerText = `הגעת אל "${targetTitle}" ב-${clicks} צעדים!`;
         const pathEl = document.getElementById('final-path');
-        pathEl.innerHTML = '<b>המסלול שעברת:</b><br>' + 
-            historyStack.map((step, i) => `<span class="path-step">${i+1}. ${step}</span>`).join('');
-
+        pathEl.innerHTML = '<b>המסלול:</b><br>' + historyStack.map((step, i) => `<span class="path-step">${i+1}. ${step}</span>`).join('');
         document.getElementById('stat-wins').innerText = stats.totalWins;
         document.getElementById('stat-avg').innerText = (stats.totalClicks / stats.totalWins).toFixed(1);
         document.getElementById('win-screen').style.display = 'flex';
@@ -377,19 +417,8 @@
     }
 
     function shareResults() {
-        const timeStr = document.getElementById('timer').innerText;
-        const formattedPath = historyStack.map((step, i) => `${i+1}. ${step}`).join('\n');
-        
-        const text = `🏆 ניצחתי במרוץ המכלול!\n\n📍 יעד: ${targetTitle}\n👣 צעדים: ${clicks}\n⏱️ זמן: ${timeStr}\n\nהמסלול שלי:\n${formattedPath}\n\nמי יכול לנצח אותי?`;
-        
-        // העתקה ללוח (טקסט מעוצב)
-        navigator.clipboard.writeText(text).then(() => {
-            if (navigator.share) {
-                navigator.share({ title: 'מרוץ המכלול - תוצאות', text: text }).catch(() => {});
-            } else {
-                alert("התוצאה המעוצבת הועתקה ללוח!");
-            }
-        });
+        const text = `🏆 ניצחתי במרוץ המכלול!\n📍 יעד: ${targetTitle}\n👣 צעדים: ${clicks}\n⏱️ זמן: ${document.getElementById('timer').innerText}`;
+        navigator.clipboard.writeText(text).then(() => alert("התוצאה הועתקה!"));
     }
 
     function startTimer() {
@@ -404,7 +433,6 @@
 
     function goBack() {
         if (historyStack.length > 1) {
-            playClickSound(100, 'sine', 0.1);
             historyStack.pop();
             loadArticle(historyStack[historyStack.length - 1], true);
             clicks++;
@@ -412,7 +440,7 @@
         }
     }
 
-    function confirmNewGame() { if(confirm("חדש?")) { localStorage.removeItem('hamichlol_race_active'); location.reload(); } }
+    function confirmNewGame() { if(confirm("להתחיל מחדש?")) { localStorage.removeItem('hamichlol_race_active'); location.reload(); } }
 
     async function getRandomArticle() {
         const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`);
@@ -422,15 +450,17 @@
 
     async function useHint() {
         if (hintsLeft <= 0) return;
-        playClickSound(900, 'sine', 0.2);
-        const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(targetTitle)}&blnamespace=0&bllimit=50&format=json&origin=*`);
-        const data = await res.json();
-        const bl = data.query.backlinks;
-        if (bl && bl.length) {
-            alert(`💡 רמז: "${bl[Math.floor(Math.random()*bl.length)].title}" מקשר ליעד.`);
-            hintsLeft--;
-            document.getElementById('hints-left').innerText = hintsLeft;
-        }
+        try {
+            playClickSound(900, 'sine', 0.2);
+            const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(targetTitle)}&blnamespace=0&bllimit=50&format=json&origin=*`);
+            const data = await res.json();
+            const bl = data.query.backlinks;
+            if (bl && bl.length > 0) {
+                alert(`💡 רמז: "${bl[Math.floor(Math.random()*bl.length)].title}" מקשר ליעד.`);
+                hintsLeft--;
+                document.getElementById('hints-left').innerText = hintsLeft;
+            } else { alert("אין רמזים ליעד זה."); }
+        } catch (e) { alert("שגיאה בטעינת רמז."); }
     }
 
     window.onload = () => {
@@ -440,7 +470,6 @@
             const data = JSON.parse(saved);
             clicks = data.clicks; seconds = data.seconds; targetTitle = data.targetTitle;
             historyStack = data.historyStack; hintsLeft = data.hintsLeft;
-            document.getElementById('click-count').innerText = clicks;
             setupGame(data.current, targetTitle, true);
         }
     };
