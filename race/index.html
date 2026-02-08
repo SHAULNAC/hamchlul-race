@@ -21,147 +21,226 @@
             --danger: #ef4444;
             --gold: #f59e0b;
             --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            --kofi: #29abe0;
         }
 
         body { 
             font-family: 'Assistant', sans-serif; 
-            margin: 0; 
-            background: radial-gradient(circle at top right, #1e293b, #0f172a); 
-            color: #f8fafc; 
-            min-height: 100vh;
-            overflow-x: hidden;
+            margin: 0; background: #f1f5f9; color: var(--primary); overflow-x: hidden;
         }
 
-        #start-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: inherit; z-index: 1000; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+        #header { 
+            position: sticky; top: 0; background: var(--primary); color: white; 
+            padding: 12px 30px; display: flex; justify-content: space-between; 
+            align-items: center; z-index: 100; box-shadow: var(--shadow);
         }
 
-        .card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 2rem; border-radius: 24px; width: 100%; max-width: 500px;
-            text-align: center; box-shadow: var(--shadow);
+        .stat-box { position: relative; text-align: center; background: rgba(255,255,255,0.08); padding: 5px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .stat-val { font-weight: 800; color: var(--accent); font-size: 1.2em; display: block; }
+        .sub-stat { font-size: 0.7em; color: #94a3b8; display: block; }
+
+        #target-tooltip {
+            position: absolute; top: 110%; left: 50%; transform: translateX(-50%);
+            width: 250px; background: white; color: #333; padding: 15px;
+            border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: none; z-index: 1000; text-align: right; font-size: 0.9em;
+            line-height: 1.4; border: 1px solid #ddd;
         }
+        .stat-box:hover #target-tooltip { display: block; }
 
-        h1 { font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -1px; }
-        .subtitle { color: #94a3b8; margin-bottom: 2rem; }
-
-        .btn {
-            background: var(--accent); color: white; border: none; padding: 12px 24px;
-            border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
-            width: 100%; margin: 8px 0; font-size: 1rem;
-        }
-        .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
-        .btn-gold { background: var(--gold); }
-        .btn-outline { background: transparent; border: 2px solid rgba(255,255,255,0.1); }
-
-        #game-ui { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; }
-        
-        #sidebar { position: sticky; top: 20px; height: fit-content; }
-        
         #content-area { 
-            background: var(--glass); color: #334155; padding: 40px; border-radius: 24px;
-            box-shadow: var(--shadow); line-height: 1.7; font-size: 1.1rem;
+            max-width: 850px; margin: 30px auto; background: var(--glass); padding: 40px; 
+            border-radius: 20px; box-shadow: var(--shadow); min-height: 80vh;
+            transition: transform 0.4s ease, opacity 0.4s ease;
         }
 
-        #content-area a { color: var(--accent); text-decoration: none; font-weight: 600; border-bottom: 1px solid transparent; }
-        #content-area a:hover { border-bottom-color: var(--accent); }
+        .page-transition { transform: translateY(20px); opacity: 0; }
 
         #vertical-tracker {
-            position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
-            width: 12px; height: 200px; background: rgba(255,255,255,0.1);
-            border-radius: 10px; display: none;
+            position: fixed; left: 50px; top: 50%; transform: translateY(-50%);
+            width: 8px; height: 350px; background: rgba(15, 23, 42, 0.1);
+            border-radius: 10px; z-index: 1000; opacity: 0; transition: 1s;
         }
-        #vertical-tracker.active { display: block; }
+        #vertical-tracker.active { opacity: 1; }
+
+        #tracker-pointer {
+            position: absolute; bottom: 0%; left: 50%; transform: translate(-50%, 50%);
+            width: 24px; height: 24px; background: #94a3b8; border-radius: 50%;
+            transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 0 15px rgba(0,0,0,0.3); border: 3px solid white;
+        }
+
         #distance-tag {
-            position: absolute; right: 25px; top: 0; white-space: nowrap;
-            padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 800;
+            position: absolute; left: 35px; top: 50%; transform: translateY(-50%);
+            white-space: nowrap; font-weight: 800; padding: 6px 14px;
+            border-radius: 20px; color: white; background: var(--primary);
+            font-size: 0.9em; opacity: 0; transition: 0.4s; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
+
+        .dist-2 #tracker-pointer { bottom: 50%; background: var(--gold); box-shadow: 0 0 25px var(--gold); animation: pulse 1.5s infinite; }
+        .dist-1 #tracker-pointer { bottom: 100%; background: var(--danger); box-shadow: 0 0 35px var(--danger); animation: pulse 0.6s infinite; }
+        .dist-active #distance-tag { opacity: 1; }
+
+        @keyframes pulse { 0% { transform: translate(-50%, 50%) scale(1); } 50% { transform: translate(-50%, 50%) scale(1.3); } 100% { transform: translate(-50%, 50%) scale(1); } }
 
         #win-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.95); z-index: 2000; display: none;
-            flex-direction: column; align-items: center; justify-content: center;
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(20px); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 5000; color: white;
+            overflow-y: auto; padding: 20px;
         }
 
+        .win-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
+            padding: 40px; border-radius: 40px; border: 1px solid rgba(255,255,255,0.15);
+            text-align: center; max-width: 500px; width: 90%;
+        }
+
+        .path-list {
+            text-align: right; background: rgba(255,255,255,0.05); padding: 15px;
+            border-radius: 15px; margin: 20px 0; max-height: 200px; overflow-y: auto;
+            font-size: 0.9em; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .path-step { display: block; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .path-step:last-child { border: none; color: var(--success); font-weight: bold; }
+
+        .btn { 
+            background: var(--accent); color: white; border: none; padding: 14px 28px; 
+            cursor: pointer; border-radius: 12px; font-weight: bold; transition: 0.3s;
+            text-decoration: none; display: inline-block;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4); }
+
+        .btn-kofi { background: var(--kofi); font-size: 0.9em; padding: 8px 16px; margin-top: 10px; }
+        .btn-danger-small { background: transparent; color: var(--danger); border: 1px solid var(--danger); font-size: 0.75em; padding: 4px 10px; margin-top: 10px; border-radius: 6px; cursor: pointer; }
+
+        .overlay-card { text-align:center; width:450px; padding:40px; background:rgba(255,255,255,0.05); border-radius:24px; border:1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+        input { width: 85%; padding: 12px; margin: 8px 0; border-radius: 10px; border: 1px solid #ddd; font-family: inherit; }
         .hidden { display: none; }
+        .mw-editsection, .noprint, .ambox, .infobox, .navbox, .hatnote { display: none !important; }
+
+        .best-stats-container {
+            display: flex; justify-content: space-around; background: rgba(255,255,255,0.1);
+            padding: 15px; border-radius: 15px; margin: 15px 0; border: 1px solid rgba(255,255,255,0.2);
+        }
+        .best-item { display: flex; flex-direction: column; gap: 4px; }
+        .best-label { font-size: 0.75em; color: #94a3b8; }
+        .best-val { font-weight: 800; color: var(--gold); font-size: 1.1em; }
     </style>
 </head>
 <body>
 
-<div id="start-screen">
-    <div class="card">
-        <h1>מרוץ המכלול 🏁</h1>
-        <p class="subtitle">הגע מערך אחד לשני במינימום צעדים</p>
-        
-        <div id="best-scores" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;">
-            <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; flex: 1;">
-                <small style="color: #94a3b8;">שיא צעדים</small><br>
-                <strong id="best-steps">---</strong>
-            </div>
-            <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; flex: 1;">
-                <small style="color: #94a3b8;">שיא זמן</small><br>
-                <strong id="best-time">---</strong>
-            </div>
-        </div>
-
-        <div id="yesterday-path-container" style="display:none; margin: 15px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); text-align: right;">
-            <span style="font-size: 0.8em; color: #94a3b8; display: block; margin-bottom: 5px;">🏆 המסלול הקצר ביותר מאתמול:</span>
-            <div id="yesterday-path-text" style="font-size: 0.9em; color: var(--gold); line-height: 1.4; word-break: break-word;"></div>
-        </div>
-
-        <button class="btn btn-gold" onclick="startDailyChallenge()">📅 האתגר היומי</button>
-        <button class="btn btn-outline" onclick="startExtreme(40)">🎲 אתגר אקראי</button>
-        
-        <div id="status-message" style="margin-top: 15px; font-size: 0.9em; color: var(--gold);"></div>
+<div id="header">
+    <div style="display:flex; gap:10px;">
+        <button class="btn" style="background:rgba(255,255,255,0.1);" onclick="goBack()">↩ חזור</button>
+        <button class="btn" style="background:rgba(239, 68, 68, 0.2); color: #f87171;" onclick="confirmNewGame()">🔄 משחק חדש</button>
     </div>
+    
+    <div style="display:flex; gap:15px;">
+        <div class="stat-box" onmouseenter="fetchTargetExtract()">
+            <span class="sub-stat">יעד</span>
+            <span id="target-label" class="stat-val">---</span>
+            <div id="target-tooltip">טוען תקציר...</div>
+        </div>
+        <div class="stat-box"><span class="sub-stat">צעדים</span><span id="click-count" class="stat-val">0</span></div>
+        <div class="stat-box"><span class="sub-stat">זמן</span><span id="timer" class="stat-val">00:00</span></div>
+    </div>
+
+    <button id="hint-btn" class="btn" style="background: var(--gold);" onclick="useHint()">💡 רמז (<span id="hints-left">3</span>)</button>
 </div>
 
-<div id="game-ui">
-    <div id="sidebar">
-        <div class="card" style="text-align: right; padding: 1.5rem;">
-            <div style="font-size: 0.8rem; color: #94a3b8;">היעד שלך:</div>
-            <div id="target-label" style="font-size: 1.5rem; font-weight: 800; color: var(--gold);">---</div>
-            <hr style="opacity: 0.1; margin: 15px 0;">
-            <div style="display: flex; justify-content: space-between;">
-                <span>צעדים: <strong id="click-count">0</strong></span>
-                <span>זמן: <strong id="timer">00:00</strong></span>
+<div id="vertical-tracker"><div id="tracker-pointer"></div><div id="distance-tag"></div></div>
+<div id="content-area"></div>
+
+<div id="start-screen" style="position:fixed; inset:0; background:var(--primary); z-index:2000; display:flex; align-items:center; justify-content:center; color:white;">
+    <div class="overlay-card">
+        <h1 style="font-size:3.5em; margin:0 0 10px 0; font-weight:800;">מרוץ המכלול</h1>
+        
+        <div id="best-scores" class="best-stats-container">
+            <div class="best-item">
+                <span class="best-label">🏆 שיא צעדים</span>
+                <span id="best-steps" class="best-val">טוען...</span>
             </div>
-            <button class="btn btn-outline" style="margin-top: 15px;" onclick="goBack()">🔙 חזור אחורה</button>
-            <button class="btn btn-outline" onclick="useHint()">💡 רמז (<span id="hints-left">3</span>)</button>
+            <div class="best-item">
+                <span class="best-label">⏱️ שיא זמן</span>
+                <span id="best-time" class="best-val">טוען...</span>
+            </div>
+        </div>
+
+        <div id="status-message" style="margin-bottom:20px; color:var(--gold); font-weight:600; min-height:1.2em;"></div>
+
+        <button class="btn" style="width:100%; background: linear-gradient(45deg, #6366f1, #a855f7); font-size: 1.3em; margin-bottom: 20px;" onclick="startDailyChallenge()">🏆 שחק באתגר היומי</button>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:40px;">
+            <button class="btn" onclick="startExtreme(60)">יעד מצוי</button>
+            <button class="btn" style="background:#1e293b" onclick="startExtreme(35)">יעד סביר</button>
+            <button class="btn" style="background:var(--danger)" onclick="startExtreme(10)">יעד נדיר</button>
+        </div>
+
+        <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 25px;">
+            <h3 style="margin:0 0 15px 0;">משחק מותאם אישית</h3>
+            <input type="text" id="custom-start" placeholder="ערך התחלה">
+            <input type="text" id="custom-target" placeholder="ערך יעד">
+            
+            <div id="custom-validation" class="hidden" style="background:rgba(255,255,255,0.05); padding:15px; border-radius:12px; margin-top:15px;">
+                <p id="validation-info" style="margin:0 0 10px 0;"></p>
+                <button class="btn" style="background:var(--success); width:100%;" onclick="confirmCustomGame()">התחל משחק</button>
+                <button class="btn" style="background:transparent; font-size:0.8em; margin-top:5px;" onclick="resetCustom()">שנה ערכים</button>
+            </div>
+            
+            <button id="check-btn" class="btn" style="width:100%; margin-top:10px;" onclick="validateCustom()">בדוק רמת קושי</button>
+        </div>
+
+        <div id="user-stats-main" style="margin-top:25px; font-size:0.85em; color:#94a3b8; padding:15px; border-radius:10px; background:rgba(255,255,255,0.02); display: flex; flex-direction: column; align-items: center;">
+            <span id="stats-text">טוען סטטיסטיקה...</span>
+            <button class="btn-danger-small" onclick="clearStats()">🗑️ אפס היסטוריית משחק</button>
+            <a href="https://ko-fi.com/shaulnac" target="_blank" class="btn btn-kofi">☕ קנה לי קפה</a>
         </div>
     </div>
-    <div id="content-area"></div>
-</div>
-
-<div id="vertical-tracker">
-    <div id="distance-tag">מתקרב...</div>
 </div>
 
 <div id="win-screen">
-    <div class="card">
-        <h1 style="color: var(--gold);">ניצחון! 🏆</h1>
-        <p id="win-summary"></p>
-        <div id="final-path" style="text-align: right; max-height: 200px; overflow-y: auto; margin: 20px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px;"></div>
-        <button class="btn" onclick="shareResults()">שיתוף תוצאה 🚀</button>
-        <button class="btn btn-outline" onclick="location.reload()">משחק חדש</button>
+    <div class="win-card">
+        <div style="font-size: 5em;">🏆</div>
+        <h1 style="font-size:3em; margin:0; color:white;">הצלחת!</h1>
+        <p id="win-summary" style="font-size:1.4em; margin:15px 0;"></p>
+        
+        <div id="final-path" class="path-list"></div>
+
+        <div style="display:flex; gap:15px; justify-content:center; margin-bottom:20px;">
+            <div class="stat-box"><span class="sub-stat">ניצחונות</span><span id="stat-wins" class="stat-val">0</span></div>
+            <div class="stat-box"><span class="sub-stat">ממוצע</span><span id="stat-avg" class="stat-val">0</span></div>
+        </div>
+        
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            <button class="btn" style="background:var(--success);" onclick="location.reload()">לאתגר הבא</button>
+            <button class="btn" style="background:var(--accent);" onclick="shareResults()">📤 שתף והעתק תוצאה</button>
+        </div>
     </div>
 </div>
 
 <script>
-    // כאן נכנס כל קוד ה-JavaScript שסיפקתי לך בתשובה הקודמת
     let clicks = 0, seconds = 0, timerInterval, targetTitle = "", historyStack = [], dist1Nodes = new Set(), hintsLeft = 3;
     let isDailyChallenge = false;
     let stats = JSON.parse(localStorage.getItem('hamichlol_pro_stats')) || { totalWins: 0, totalClicks: 0, totalTime: 0 };
     let playerName = localStorage.getItem('hamichlol_player_name') || "";
 
-    // כתובת ה-WebApp שלך
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwBgde_9uh2ykFsR_6bzGpVFkofv22mV-g1cDBfHRWePOmhCqLsi5Tdl_Gon04WFxaq/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwyU2rELpefcdUpwdWMuS4rMJQ4JDiaG_3WHSZAZqiEBlKuKE0bxBW_H5xnqAg3N7hz/exec";
 
-    // --- הפונקציות המרכזיות ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playClickSound(freq = 600, type = 'sine', duration = 0.1) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
     async function fetchLeaderboard() {
         try {
             const response = await fetch(`${WEB_APP_URL}?action=getBestScores&t=${Date.now()}`);
@@ -169,17 +248,92 @@
             if (data && data.status === "success") {
                 document.getElementById('best-steps').innerText = data.minSteps || "---";
                 document.getElementById('best-time').innerText = data.minTime || "---";
-                const pathContainer = document.getElementById('yesterday-path-container');
-                const pathText = document.getElementById('yesterday-path-text');
-                if (data.yesterdayPath && data.yesterdayPath !== "אין נתונים מאתמול") {
-                    pathText.innerText = data.yesterdayPath;
-                    pathContainer.style.display = 'block';
-                } else {
-                    pathContainer.style.display = 'none';
-                }
             }
+        } catch (e) {
+            document.getElementById('best-steps').innerText = "---";
+            document.getElementById('best-time').innerText = "---";
+        }
+    }
+
+    async function syncDataToSheet() {
+        const todayStr = new Date().toLocaleDateString('en-GB');
+        if (isDailyChallenge) {
+            const dailyKey = `daily_done_${todayStr}`;
+            if (localStorage.getItem(dailyKey)) return; 
+            localStorage.setItem(dailyKey, "true");
+        }
+
+        const timeStr = document.getElementById('timer').innerText;
+        const payload = {
+            action: "submitScore",
+            name: playerName || "אנונימי",
+            steps: clicks,
+            time: timeStr,
+            target: targetTitle,
+            date: todayStr
+        };
+
+        try {
+            await fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify(payload)
+            });
+        } catch (err) { }
+    }
+
+    // תיקון תקציר לפי קובץ 1
+    async function fetchTargetExtract() {
+        if (!targetTitle) return;
+        const tooltip = document.getElementById('target-tooltip');
+        if (tooltip.innerText !== "טוען תקציר...") return;
+        try {
+            const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(targetTitle)}&format=json&origin=*`);
+            const data = await res.json();
+            const pages = data.query.pages;
+            const extract = pages[Object.keys(pages)[0]].extract || "אין תקציר זמין.";
+            tooltip.innerText = extract.substring(0, 200) + "...";
+        } catch (e) { tooltip.innerText = "שגיאה בטעינת תקציר."; }
+    }
+
+    // תיקון טעינת משחק לפי רמות מקובץ 1
+    async function startExtreme(minLinks) {
+        isDailyChallenge = false;
+        document.getElementById('status-message').innerText = "מחפש יעד...";
+        try {
+            const start = await getRandomArticle();
+            let target = "", count = 0;
+            while (count < minLinks) {
+                target = await getRandomArticle();
+                const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(target)}&blnamespace=0&bllimit=200&format=json&origin=*`);
+                const data = await res.json();
+                count = data.query.backlinks ? data.query.backlinks.length : 0;
+            }
+            setupGame(start, target);
         } catch (e) { }
     }
+
+    // תיקון משחק מותאם אישית מקובץ 1
+    async function validateCustom() {
+        const target = document.getElementById('custom-target').value.trim();
+        if(!target) return;
+        document.getElementById('check-btn').innerText = "...";
+        try {
+            const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(target)}&blnamespace=0&bllimit=500&format=json&origin=*`);
+            const data = await res.json();
+            const count = data.query.backlinks ? data.query.backlinks.length : 0;
+            document.getElementById('validation-info').innerHTML = `יעד: ${target}<br><b>לפחות ${count} קישורים</b>`;
+            document.getElementById('custom-validation').classList.remove('hidden');
+            document.getElementById('check-btn').classList.add('hidden');
+        } catch (e) { alert("שגיאה"); }
+    }
+
+    function confirmCustomGame() { 
+        isDailyChallenge = false;
+        setupGame(document.getElementById('custom-start').value, document.getElementById('custom-target').value); 
+    }
+    
+    function resetCustom() { document.getElementById('custom-validation').classList.add('hidden'); document.getElementById('check-btn').classList.remove('hidden'); }
 
     async function startDailyChallenge() {
         if (!playerName) {
@@ -187,100 +341,92 @@
             if (!playerName) return;
             localStorage.setItem('hamichlol_player_name', playerName);
         }
+        
+        document.getElementById('status-message').innerText = "בודק אם כבר הוגרל אתגר להיום...";
         const todayStr = new Date().toLocaleDateString('en-GB');
-        document.getElementById('status-message').innerText = "בודק הרשאות כניסה...";
-        try {
-            const checkRes = await fetch(`${WEB_APP_URL}?action=checkIfPlayed&name=${encodeURIComponent(playerName)}&date=${todayStr}`);
-            const checkData = await checkRes.json();
-            if (checkData.played) {
-                alert("כבר שיחקת היום באתגר היומי!");
-                document.getElementById('status-message').innerText = "";
-                return;
-            }
-        } catch (e) { }
 
-        document.getElementById('status-message').innerText = "טוען אתגר...";
         try {
             const response = await fetch(`${WEB_APP_URL}?action=getDaily&date=${todayStr}`);
             const data = await response.json();
+
+            let start, target;
             if (data && data.found) {
-                isDailyChallenge = true;
-                setupGame(data.start, data.target);
+                start = data.start;
+                target = data.target;
             } else {
-                // לוגיקה ליצירת אתגר חדש אם אין
-                document.getElementById('status-message').innerText = "מגריל יעד...";
-                const start = await getRandomArticle();
-                const target = await getRandomArticle(); // כאן אפשר להוסיף לוגיקת אימות קשר
+                document.getElementById('status-message').innerText = "אתה הראשון להיום! מגריל אתגר (עשוי לקחת כמה שניות)...";
+                start = await getRandomArticle();
+                let count = 0;
+                while (count < 40) {
+                    target = await getRandomArticle();
+                    const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(target)}&blnamespace=0&bllimit=100&format=json&origin=*`);
+                    const blData = await res.json();
+                    count = blData.query.backlinks ? blData.query.backlinks.length : 0;
+                }
                 await fetch(WEB_APP_URL, {
                     method: 'POST',
                     mode: 'no-cors',
                     body: JSON.stringify({ action: "saveDaily", date: todayStr, start: start, target: target })
                 });
-                isDailyChallenge = true;
-                setupGame(start, target);
             }
-        } catch (e) { }
+            isDailyChallenge = true;
+            setupGame(start, target);
+        } catch (e) {
+            setupGame("ארץ ישראל", "ירושלים");
+        }
+    }
+
+    function setupGame(start, target, isResume = false) {
+        targetTitle = target;
+        if(!isResume) { clicks = 0; seconds = 0; historyStack = []; hintsLeft = 3; }
+        document.getElementById('target-label').innerText = target;
+        document.getElementById('click-count').innerText = clicks;
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('vertical-tracker').classList.add('active');
+        prepareCompass(target);
+        startTimer();
+        loadArticle(start, isResume);
     }
 
     async function loadArticle(title, isBack = false) {
         const area = document.getElementById('content-area');
+        area.classList.add('page-transition');
         try {
             const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=parse&page=${encodeURIComponent(title)}&format=json&origin=*&prop=text|displaytitle|links&redirects=1`);
             const data = await res.json();
             if (data.parse) {
-                const current = data.parse.displaytitle.replace(/<[^>]*>?/gm, '');
-                area.innerHTML = `<h1>${current}</h1>` + data.parse.text["*"];
-                if (!isBack) historyStack.push(current);
-                if (current.toLowerCase() === targetTitle.toLowerCase()) win();
-                window.scrollTo(0,0);
+                setTimeout(() => {
+                    const current = data.parse.displaytitle.replace(/<[^>]*>?/gm, '');
+                    area.innerHTML = `<h1>${current}</h1>` + data.parse.text["*"];
+                    const links = data.parse.links ? data.parse.links.map(l => l["*"]) : [];
+                    updateCompass(current, links);
+                    if (!isBack) historyStack.push(current);
+                    saveGameState(current);
+                    if (current.toLowerCase() === targetTitle.toLowerCase()) win();
+                    window.scrollTo(0,0);
+                    area.classList.remove('page-transition');
+                }, 400);
             }
-        } catch (e) { }
+        } catch (e) { area.classList.remove('page-transition'); }
     }
 
-    function setupGame(start, target) {
-        targetTitle = target;
-        clicks = 0; seconds = 0; historyStack = [];
-        document.getElementById('target-label').innerText = target;
-        document.getElementById('start-screen').style.display = 'none';
-        startTimer();
-        loadArticle(start);
-    }
-
-    function startTimer() {
-        timerInterval = setInterval(() => {
-            seconds++;
-            const m = Math.floor(seconds/60).toString().padStart(2,'0');
-            const s = (seconds%60).toString().padStart(2,'0');
-            document.getElementById('timer').innerText = `${m}:${s}`;
-        }, 1000);
-    }
-
-    async function win() {
-        clearInterval(timerInterval);
-        if (isDailyChallenge) {
-            const todayStr = new Date().toLocaleDateString('en-GB');
-            await fetch(WEB_APP_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({
-                    action: "submitScore",
-                    name: playerName,
-                    steps: clicks,
-                    time: document.getElementById('timer').innerText,
-                    target: targetTitle,
-                    date: todayStr,
-                    path: historyStack.join(" ➔ ")
-                })
-            });
-        }
-        document.getElementById('win-summary').innerText = `הגעת ליעד ב-${clicks} צעדים!`;
-        document.getElementById('win-screen').style.display = 'flex';
-    }
-
-    async function getRandomArticle() {
-        const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`);
+    async function prepareCompass(target) {
+        const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(target)}&blnamespace=0&bllimit=200&format=json&origin=*`);
         const data = await res.json();
-        return data.query.random[0].title;
+        dist1Nodes = new Set(data.query.backlinks ? data.query.backlinks.map(b => b.title) : []);
+    }
+
+    function updateCompass(title, links) {
+        const tracker = document.getElementById('vertical-tracker');
+        const tag = document.getElementById('distance-tag');
+        tracker.classList.remove('dist-1', 'dist-2', 'dist-active');
+        if (dist1Nodes.has(title)) {
+            tracker.classList.add('dist-1', 'dist-active');
+            tag.innerText = "רותח!"; tag.style.background = 'var(--danger)';
+        } else if (links.some(l => dist1Nodes.has(l))) {
+            tracker.classList.add('dist-2', 'dist-active');
+            tag.innerText = "מתחמם..."; tag.style.background = 'var(--gold)';
+        }
     }
 
     document.addEventListener('click', e => {
@@ -289,6 +435,7 @@
             e.preventDefault();
             let title = link.title || decodeURIComponent((link.getAttribute('href') || "").replace('/wiki/', ''));
             if (title && !title.includes(':')) {
+                playClickSound(150, 'triangle', 0.05);
                 clicks++;
                 document.getElementById('click-count').innerText = clicks;
                 loadArticle(title);
@@ -296,7 +443,93 @@
         }
     });
 
-    window.onload = fetchLeaderboard;
+    function win() {
+        clearInterval(timerInterval);
+        syncDataToSheet();
+        stats.totalWins++; stats.totalClicks += clicks; stats.totalTime += seconds;
+        localStorage.setItem('hamichlol_pro_stats', JSON.stringify(stats));
+        document.getElementById('win-summary').innerText = `הגעת אל "${targetTitle}" ב-${clicks} צעדים!`;
+        const pathEl = document.getElementById('final-path');
+        pathEl.innerHTML = '<b>המסלול שלך:</b><br>' + historyStack.map((step, i) => `<span class="path-step">${i+1}. ${step}</span>`).join('');
+        document.getElementById('win-screen').style.display = 'flex';
+        localStorage.removeItem('hamichlol_race_active');
+    }
+
+    function startTimer() {
+        if(timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            seconds++;
+            const m = Math.floor(seconds/60).toString().padStart(2,'0');
+            const s = (seconds%60).toString().padStart(2,'0');
+            document.getElementById('timer').innerText = `${m}:${s}`;
+        }, 1000);
+    }
+
+    async function getRandomArticle() {
+        const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`);
+        const data = await res.json();
+        return data.query.random[0].title;
+    }
+
+    function goBack() {
+        if (historyStack.length > 1) {
+            historyStack.pop();
+            loadArticle(historyStack[historyStack.length - 1], true);
+            clicks++;
+            document.getElementById('click-count').innerText = clicks;
+        }
+    }
+
+    function confirmNewGame() { if(confirm("האם אתה בטוח שברצונך להתחיל מחדש? כל ההתקדמות תאבד.")) { localStorage.removeItem('hamichlol_race_active'); location.reload(); } }
+
+    function saveGameState(current) {
+        localStorage.setItem('hamichlol_race_active', JSON.stringify({ clicks, seconds, targetTitle, historyStack, hintsLeft, current, isDailyChallenge }));
+    }
+
+    async function useHint() {
+        if (hintsLeft <= 0) return;
+        try {
+            const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(targetTitle)}&blnamespace=0&bllimit=50&format=json&origin=*`);
+            const data = await res.json();
+            const bl = data.query.backlinks;
+            if (bl && bl.length > 0) {
+                alert(`💡 רמז: "${bl[Math.floor(Math.random()*bl.length)].title}" מקשר ליעד.`);
+                hintsLeft--;
+                document.getElementById('hints-left').innerText = hintsLeft;
+            }
+        } catch (e) { }
+    }
+
+    function updateStatsDisplay() {
+        const avg = stats.totalWins ? (stats.totalClicks / stats.totalWins).toFixed(1) : 0;
+        document.getElementById('stats-text').innerText = `סטטיסטיקה: ${stats.totalWins} ניצחונות | ממוצע ${avg} צעדים`;
+    }
+
+    function clearStats() {
+        if(confirm("למחוק סטטיסטיקה?")) {
+            stats = { totalWins: 0, totalClicks: 0, totalTime: 0 };
+            localStorage.setItem('hamichlol_pro_stats', JSON.stringify(stats));
+            updateStatsDisplay();
+        }
+    }
+
+    function shareResults() {
+        const text = `🏆 ניצחתי במרוץ המכלול!\n📍 יעד: ${targetTitle}\n👣 צעדים: ${clicks}\n⏱️ זמן: ${document.getElementById('timer').innerText}`;
+        navigator.clipboard.writeText(text).then(() => alert("התוצאה הועתקה!"));
+    }
+
+    window.onload = () => {
+        updateStatsDisplay();
+        fetchLeaderboard();
+        const saved = localStorage.getItem('hamichlol_race_active');
+        if (saved) {
+            const data = JSON.parse(saved);
+            clicks = data.clicks; seconds = data.seconds; targetTitle = data.targetTitle;
+            historyStack = data.historyStack; hintsLeft = data.hintsLeft;
+            isDailyChallenge = data.isDailyChallenge || false;
+            setupGame(data.current, targetTitle, true);
+        }
+    };
 </script>
 </body>
 </html>
