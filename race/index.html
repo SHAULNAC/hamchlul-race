@@ -267,23 +267,37 @@
     localStorage.setItem(dailyKey, "true");
 
     const timeStr = document.getElementById('timer').innerText;
+
+    // --- יצירת הנתונים החדשים למשלוח ---
+    // מזהה דפדפן פשוט (userAgent)
+    const browserID = navigator.userAgent; 
+    // הפיכת רשימת היסטוריית הצעדים למחרוזת אחת מופרדת בפסיקים
+    const stepsList = historyStack.join(" -> ");
+
     const payload = {
-        action: "submitScore",
+        action: "submitScore", // שים לב: ב-GAS שלך הוספת את זה תחת doPost ללא בדיקת action ספציפית, אבל כדאי לשמור על עקביות
         name: playerName || "אנונימי",
         steps: clicks,
         time: timeStr,
         target: targetTitle,
-        date: todayStr
+        date: todayStr,
+        // השדות החדשים שהוספנו:
+        browserID: browserID,
+        stepsList: stepsList
     };
 
     try {
         await fetch(WEB_APP_URL, {
             method: 'POST',
             mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(payload)
         });
+        console.log("הנתונים נשלחו בהצלחה");
     } catch (err) { 
-        console.error("שגיאה בסנכרון הנתונים");
+        console.error("שגיאה בסנכרון הנתונים", err);
     }
 }
 
@@ -538,6 +552,7 @@
 </script>
 </body>
 </html>
+
 
 
 
