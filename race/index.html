@@ -222,6 +222,7 @@
 <script>
     let clicks = 0, seconds = 0, timerInterval, targetTitle = "", historyStack = [], dist1Nodes = new Set(), hintsLeft = 3;
     let isDailyChallenge = false;
+    let dailyStartValue = "", dailyTargetValue = ""; // משתנים חדשים לשמירת אתגר היום
     let stats = JSON.parse(localStorage.getItem('hamichlol_pro_stats')) || { totalWins: 0, totalClicks: 0, totalTime: 0 };
     let playerName = localStorage.getItem('hamichlol_player_name') || "";
 
@@ -256,52 +257,36 @@
     }
 
     async function syncDataToSheet() {
-    // בדיקה: אם זה לא אתגר יומי, אל תבצע שליחה ותצא מהפונקציה
-    if (!isDailyChallenge) return;
+        if (!isDailyChallenge) return;
+        const todayStr = new Date().toLocaleDateString('en-GB');
+        const dailyKey = `daily_done_${todayStr}`;
+        if (localStorage.getItem(dailyKey)) return; 
+        localStorage.setItem(dailyKey, "true");
+        const timeStr = document.getElementById('timer').innerText;
+        const browserID = navigator.userAgent; 
+        const stepsList = historyStack.join(" -> ");
 
-    const todayStr = new Date().toLocaleDateString('en-GB');
-    const dailyKey = `daily_done_${todayStr}`;
-    
-    // מניעת שליחה כפולה של אותו אתגר יומי
-    if (localStorage.getItem(dailyKey)) return; 
-    localStorage.setItem(dailyKey, "true");
+        const payload = {
+            action: "submitScore",
+            name: playerName || "אנונימי",
+            steps: clicks,
+            time: timeStr,
+            target: targetTitle,
+            date: todayStr,
+            browserID: browserID,
+            stepsList: stepsList
+        };
 
-    const timeStr = document.getElementById('timer').innerText;
-
-    // --- יצירת הנתונים החדשים למשלוח ---
-    // מזהה דפדפן פשוט (userAgent)
-    const browserID = navigator.userAgent; 
-    // הפיכת רשימת היסטוריית הצעדים למחרוזת אחת מופרדת בפסיקים
-    const stepsList = historyStack.join(" -> ");
-
-    const payload = {
-        action: "submitScore", // שים לב: ב-GAS שלך הוספת את זה תחת doPost ללא בדיקת action ספציפית, אבל כדאי לשמור על עקביות
-        name: playerName || "אנונימי",
-        steps: clicks,
-        time: timeStr,
-        target: targetTitle,
-        date: todayStr,
-        // השדות החדשים שהוספנו:
-        browserID: browserID,
-        stepsList: stepsList
-    };
-
-    try {
-        await fetch(WEB_APP_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-        });
-        console.log("הנתונים נשלחו בהצלחה");
-    } catch (err) { 
-        console.error("שגיאה בסנכרון הנתונים", err);
+        try {
+            await fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch (err) { }
     }
-}
 
-    // תיקון תקציר לפי קובץ 1
     async function fetchTargetExtract() {
         if (!targetTitle) return;
         const tooltip = document.getElementById('target-tooltip');
@@ -315,7 +300,6 @@
         } catch (e) { tooltip.innerText = "שגיאה בטעינת תקציר."; }
     }
 
-    // תיקון טעינת משחק לפי רמות מקובץ 1
     async function startExtreme(minLinks) {
         isDailyChallenge = false;
         document.getElementById('status-message').innerText = "מחפש יעד...";
@@ -332,7 +316,6 @@
         } catch (e) { }
     }
 
-    // תיקון משחק מותאם אישית מקובץ 1
     async function validateCustom() {
         const target = document.getElementById('custom-target').value.trim();
         if(!target) return;
@@ -348,8 +331,19 @@
     }
 
     function confirmCustomGame() { 
+        const customStart = document.getElementById('custom-start').value.trim();
+        const customTarget = document.getElementById('custom-target').value.trim();
+
+        // הגבלה: בדיקה אם המשתמש מנסה להזין את האתגר היומי כיעד מותאם אישית
+        if (dailyStartValue && dailyTargetValue) {
+            if (customStart === dailyStartValue && customTarget === dailyTargetValue) {
+                alert(" ניסיון יפה... אתה יכול לעשות את זה ידנית באתר המכלול עצמו אם הניקוד כל כך חשוב לך חמוד.");
+                return;
+            }
+        }
+
         isDailyChallenge = false;
-        setupGame(document.getElementById('custom-start').value, document.getElementById('custom-target').value); 
+        setupGame(customStart, customTarget); 
     }
     
     function resetCustom() { document.getElementById('custom-validation').classList.add('hidden'); document.getElementById('check-btn').classList.remove('hidden'); }
@@ -361,7 +355,7 @@
             localStorage.setItem('hamichlol_player_name', playerName);
         }
         
-        document.getElementById('status-message').innerText = "בודק אם כבר הוגרל אתגר להיום...";
+        document.getElementById('status-message').innerText = "בודק אם כבר נבחר אתגר להיום...";
         const todayStr = new Date().toLocaleDateString('en-GB');
 
         try {
@@ -373,7 +367,7 @@
                 start = data.start;
                 target = data.target;
             } else {
-                document.getElementById('status-message').innerText = "אתה הראשון להיום! מגריל אתגר (עשוי לקחת כמה שניות)...";
+                document.getElementById('status-message').innerText = "אתה הראשון להיום! בוחר אתגר (עשוי לקחת כמה שניות)...";
                 start = await getRandomArticle();
                 let count = 0;
                 while (count < 40) {
@@ -388,6 +382,11 @@
                     body: JSON.stringify({ action: "saveDaily", date: todayStr, start: start, target: target })
                 });
             }
+            
+            // שמירת ערכי היום למשתנים הגלובליים לצורך חסימה במותאם אישית
+            dailyStartValue = start;
+            dailyTargetValue = target;
+            
             isDailyChallenge = true;
             setupGame(start, target);
         } catch (e) {
@@ -499,7 +498,7 @@
         }
     }
 
-    function confirmNewGame() { if(confirm("האם אתה בטוח שברצונך להתחיל מחדש? כל ההתקדמות תאבד.")) { localStorage.removeItem('hamichlol_race_active'); location.reload(); } }
+    function confirmNewGame() { if(confirm("האם אתה בטוח שברצונך להתחיל מחדש?.")) { localStorage.removeItem('hamichlol_race_active'); location.reload(); } }
 
     function saveGameState(current) {
         localStorage.setItem('hamichlol_race_active', JSON.stringify({ clicks, seconds, targetTitle, historyStack, hintsLeft, current, isDailyChallenge }));
@@ -537,9 +536,23 @@
         navigator.clipboard.writeText(text).then(() => alert("התוצאה הועתקה!"));
     }
 
+    // טעינת האתגר היומי ברקע כדי להכיר את הערכים שלו לחסימה
+    async function preloadDailyInfo() {
+        const todayStr = new Date().toLocaleDateString('en-GB');
+        try {
+            const response = await fetch(`${WEB_APP_URL}?action=getDaily&date=${todayStr}`);
+            const data = await response.json();
+            if (data && data.found) {
+                dailyStartValue = data.start;
+                dailyTargetValue = data.target;
+            }
+        } catch (e) {}
+    }
+
     window.onload = () => {
         updateStatsDisplay();
         fetchLeaderboard();
+        preloadDailyInfo(); // טעינת נתוני היום למניעת כפילות
         const saved = localStorage.getItem('hamichlol_race_active');
         if (saved) {
             const data = JSON.parse(saved);
@@ -552,10 +565,3 @@
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
