@@ -167,6 +167,12 @@
             </div>
         </div>
 
+        <div id="yesterday-container" style="display:none; margin: 15px 0; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 15px; border: 1px solid rgba(59, 130, 246, 0.2); text-align: right;">
+            <div style="color: var(--accent); font-weight: 800; font-size: 0.9em; margin-bottom: 8px;">🏆 המסלול המנצח מאתמול:</div>
+            <div id="yesterday-path" style="font-size: 0.85em; color: #cbd5e1; line-height: 1.4; margin-bottom: 8px;"></div>
+            <div id="yesterday-meta" style="font-size: 0.8em; color: var(--gold); font-weight: 600;"></div>
+        </div>
+
         <div id="status-message" style="margin-bottom:20px; color:var(--gold); font-weight:600; min-height:1.2em;"></div>
 
         <button class="btn" style="width:100%; background: linear-gradient(45deg, #6366f1, #a855f7); font-size: 1.3em; margin-bottom: 20px;" onclick="startDailyChallenge()">🏆 שחק באתגר היומי</button>
@@ -222,11 +228,11 @@
 <script>
     let clicks = 0, seconds = 0, timerInterval, targetTitle = "", historyStack = [], dist1Nodes = new Set(), hintsLeft = 3;
     let isDailyChallenge = false;
-    let dailyStartValue = "", dailyTargetValue = ""; // משתנים חדשים לשמירת אתגר היום
+    let dailyStartValue = "", dailyTargetValue = ""; 
     let stats = JSON.parse(localStorage.getItem('hamichlol_pro_stats')) || { totalWins: 0, totalClicks: 0, totalTime: 0 };
     let playerName = localStorage.getItem('hamichlol_player_name') || "";
 
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxRVlVO3xj9AQgMKPOmk3JtvRs0WVz7PUJgsyJyqAnqoZ1OWqs1fkUFVHJ7fX_LnYY_/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyoZnmUDX8sbdQraRXGgNgMFp123gCLAILAHgR-a2EIfkTqG9wjSon5HngToryQPUG6/exec";
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playClickSound(freq = 600, type = 'sine', duration = 0.1) {
@@ -254,6 +260,19 @@
             document.getElementById('best-steps').innerText = "---";
             document.getElementById('best-time').innerText = "---";
         }
+    }
+
+    // פונקציית שליפת המסלול המנצח מאתמול
+    async function fetchYesterdayBest() {
+        try {
+            const response = await fetch(`${WEB_APP_URL}?action=getYesterdayBest&t=${Date.now()}`);
+            const data = await response.json();
+            if (data && data.found) {
+                document.getElementById('yesterday-container').style.display = 'block';
+                document.getElementById('yesterday-path').innerText = data.path.replace(/ -> /g, " ➔ ");
+                document.getElementById('yesterday-meta').innerText = `שחקן: ${data.name} | צעדים: ${data.steps}`;
+            }
+        } catch (e) { console.log("No yesterday data"); }
     }
 
     async function syncDataToSheet() {
@@ -334,7 +353,6 @@
         const customStart = document.getElementById('custom-start').value.trim();
         const customTarget = document.getElementById('custom-target').value.trim();
 
-        // הגבלה: בדיקה אם המשתמש מנסה להזין את האתגר היומי כיעד מותאם אישית
         if (dailyStartValue && dailyTargetValue) {
             if (customStart === dailyStartValue && customTarget === dailyTargetValue) {
                 alert(" ניסיון יפה... אתה יכול לעשות את זה ידנית באתר המכלול עצמו אם הניקוד כל כך חשוב לך חמוד.");
@@ -383,7 +401,6 @@
                 });
             }
             
-            // שמירת ערכי היום למשתנים הגלובליים לצורך חסימה במותאם אישית
             dailyStartValue = start;
             dailyTargetValue = target;
             
@@ -536,7 +553,6 @@
         navigator.clipboard.writeText(text).then(() => alert("התוצאה הועתקה!"));
     }
 
-    // טעינת האתגר היומי ברקע כדי להכיר את הערכים שלו לחסימה
     async function preloadDailyInfo() {
         const todayStr = new Date().toLocaleDateString('en-GB');
         try {
@@ -552,7 +568,8 @@
     window.onload = () => {
         updateStatsDisplay();
         fetchLeaderboard();
-        preloadDailyInfo(); // טעינת נתוני היום למניעת כפילות
+        fetchYesterdayBest(); // הפעלה בטעינה
+        preloadDailyInfo(); 
         const saved = localStorage.getItem('hamichlol_race_active');
         if (saved) {
             const data = JSON.parse(saved);
