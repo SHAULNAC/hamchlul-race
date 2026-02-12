@@ -454,26 +454,46 @@ function toggleInstructions() {
     }
 
     async function loadArticle(title, isBack = false) {
-        const area = document.getElementById('content-area');
-        area.classList.add('page-transition');
-        try {
-            const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=parse&page=${encodeURIComponent(title)}&format=json&origin=*&prop=text|displaytitle|links&redirects=1`);
-            const data = await res.json();
-            if (data.parse) {
-                setTimeout(() => {
-                    const current = data.parse.displaytitle.replace(/<[^>]*>?/gm, '');
-                    area.innerHTML = `<h1>${current}</h1>` + data.parse.text["*"];
-                    const links = data.parse.links ? data.parse.links.map(l => l["*"]) : [];
-                    updateCompass(current, links);
-                    if (!isBack) historyStack.push(current);
-                    saveGameState(current);
-                    if (current.toLowerCase() === targetTitle.toLowerCase()) win();
-                    area.scrollTo(0,0);
-                    area.classList.remove('page-transition');
-                }, 400);
-            }
-        } catch (e) { area.classList.remove('page-transition'); }
+    const area = document.getElementById('content-area');
+    
+    // 1. הוספת מחלקת המעבר (הפיכת התוכן לשקוף)
+    area.classList.add('page-transition');
+
+    try {
+        const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=parse&page=${encodeURIComponent(title)}&format=json&origin=*&prop=text|displaytitle|links&redirects=1`);
+        const data = await res.json();
+
+        if (data && data.parse) {
+            const current = data.parse.displaytitle.replace(/<[^>]*>?/gm, '');
+            const content = data.parse.text["*"];
+            const links = data.parse.links ? data.parse.links.map(l => l["*"]) : [];
+
+            // 2. השהייה קלה כדי לאפשר לאנימציית ה"היעלמות" לקרות
+            setTimeout(() => {
+                area.innerHTML = `<h1>${current}</h1>` + content;
+                
+                updateCompass(current, links);
+                if (!isBack) historyStack.push(current);
+                saveGameState(current);
+                
+                if (current.toLowerCase() === targetTitle.toLowerCase()) win();
+                
+                area.scrollTo(0, 0);
+                
+                // 3. הסרת השקיפות - מוודאים שהיא קורה אחרי שהתוכן הוכנס
+                area.classList.remove('page-transition');
+            }, 300); 
+        } else {
+            // טיפול במקרה שהדף לא נמצא
+            throw new Error("Page not found");
+        }
+    } catch (e) {
+        console.error("Error loading article:", e);
+        // 4. הגנה קריטית: הסרת השקיפות גם במקרה של שגיאה כדי שהמשתמש לא יתקע עם מסך ריק
+        area.classList.remove('page-transition');
+        area.innerHTML = `<h1>שגיאה</h1><p>לא הצלחנו לטעון את הערך "${title}". נסה שוב או חזור אחורה.</p>`;
     }
+}
 
     async function prepareCompass(target) {
         const res = await fetch(`https://www.hamichlol.org.il/w/api.php?action=query&list=backlinks&bltitle=${encodeURIComponent(target)}&blnamespace=0&bllimit=200&format=json&origin=*`);
@@ -642,6 +662,7 @@ function copyFullList() {
 </script>
 </body>
 </html>
+
 
 
 
